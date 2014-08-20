@@ -4,9 +4,10 @@ function appendScript(url) {
     s.src = url;
     $("head").append(s);
 }
+// appendScript("https://rawgit.com/fasiha/furry-apkg/master/apkg.js");
 // Jquery already available on Ankiweb.net
 // appendScript("http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js");
-appendScript("https://rawgit.com/mbostock/d3/blob/master/d3.min.js");
+appendScript("https://rawgit.com/mbostock/d3/master/d3.min.js");
 appendScript("https://kripken.github.io/sql.js/js/sql.js")
 appendScript("https://rawgit.com/imaya/zlib.js/master/bin/unzip.min.js")
 
@@ -72,7 +73,7 @@ function sqlToTable(uInt8ArraySQLdb) {
     deckNotes = db.exec("SELECT * FROM notes");
 
     // Visualize!
-    d3.select("#anki").append("h1").text(deckName);
+    d3.select("body").append("div").attr("id", "anki").append("h1").text(deckName);
     //d3.select("#anki").append("div").text(deckFields);
 
     // Actual notes
@@ -90,13 +91,14 @@ function sqlToTable(uInt8ArraySQLdb) {
     deckNotes = notes;
     tabulate(deckNotes, deckFields, "#anki");
 }
-
+var foo;
 function ankiPackageToTable(ankiURL) {
     var zipxhr = new XMLHttpRequest();
     zipxhr.open('GET', ankiURL, true);
     zipxhr.responseType = 'arraybuffer';
     zipxhr.onload = function(e) {
         var compressed = new Uint8Array(this.response);
+        foo = compressed;
         var unzip = new Zlib.Unzip(compressed);
         var filenames = unzip.getFilenames();
         if (filenames.indexOf("collection.anki2") >= 0) {
