@@ -1,16 +1,3 @@
-function appendScript(url) {
-    var s = document.createElement("script");
-    s.type = "text/javascript";
-    s.src = url;
-    $("head").append(s);
-}
-// appendScript("https://rawgit.com/fasiha/furry-apkg/master/apkg.js");
-// Jquery already available on Ankiweb.net
-// appendScript("http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js");
-appendScript("https://rawgit.com/mbostock/d3/master/d3.min.js");
-appendScript("https://kripken.github.io/sql.js/js/sql.js")
-appendScript("https://rawgit.com/imaya/zlib.js/master/bin/unzip.min.js")
-
 var deckNotes;
 var deckFields;
 var deckName;
@@ -92,18 +79,19 @@ function sqlToTable(uInt8ArraySQLdb) {
     tabulate(deckNotes, deckFields, "#anki");
 }
 
-function ankiPackageToTable(ankiURL) {
+function ankiBinaryToTable(ankiArray) {
+    var compressed = new Uint8Array(ankiArray);
+    var unzip = new Zlib.Unzip(compressed);
+    var filenames = unzip.getFilenames();
+    if (filenames.indexOf("collection.anki2") >= 0) {
+        var plain = unzip.decompress("collection.anki2");
+        sqlToTable(plain);
+    }
+}
+function ankiURLToTable(ankiURL) {
     var zipxhr = new XMLHttpRequest();
     zipxhr.open('GET', ankiURL, true);
     zipxhr.responseType = 'arraybuffer';
-    zipxhr.onload = function(e) {
-        var compressed = new Uint8Array(this.response);
-        var unzip = new Zlib.Unzip(compressed);
-        var filenames = unzip.getFilenames();
-        if (filenames.indexOf("collection.anki2") >= 0) {
-            var plain = unzip.decompress("collection.anki2");
-            sqlToTable(plain);
-        }
-    }
+    zipxhr.onload = function(e) {ankiBinaryToTable(this.response);}
     zipxhr.send();
 }
