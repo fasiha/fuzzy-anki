@@ -91,14 +91,13 @@ function sqlToTable(uInt8ArraySQLdb) {
     deckNotes = notes;
     tabulate(deckNotes, deckFields, "#anki");
 }
-var foo;
+
 function ankiPackageToTable(ankiURL) {
     var zipxhr = new XMLHttpRequest();
     zipxhr.open('GET', ankiURL, true);
     zipxhr.responseType = 'arraybuffer';
     zipxhr.onload = function(e) {
         var compressed = new Uint8Array(this.response);
-        foo = compressed;
         var unzip = new Zlib.Unzip(compressed);
         var filenames = unzip.getFilenames();
         if (filenames.indexOf("collection.anki2") >= 0) {
