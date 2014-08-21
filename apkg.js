@@ -4,7 +4,7 @@ var deckName;
 var ankiSeparator = '\x1f';
 
 // Huge props to http://stackoverflow.com/a/9507713/500207
-function tabulate(data, columns, containerString) {
+function tabulate(datatable, columns, containerString) {
     var table = d3.select(containerString).append("table"),
         thead = table.append("thead"), tbody = table.append("tbody");
 
@@ -13,7 +13,7 @@ function tabulate(data, columns, containerString) {
         function(column) { return column; });
 
     // create a row for each object in the data
-    var rows = tbody.selectAll("tr").data(data).enter().append("tr");
+    var rows = tbody.selectAll("tr").data(datatable).enter().append("tr");
 
     // create a cell in each row for each column
     var cells = rows.selectAll("td")
@@ -39,7 +39,7 @@ function sqlToTable(uInt8ArraySQLdb) {
     var fnames = [];
     for (key in models) {
         if (models.hasOwnProperty(key)) {
-            // This should happen only once.
+            // This happens once every model: FIXME
             deckName = models[key].name;
             models[key].flds.forEach(
                 function(val, idx, arr) { fnames.push(val.name); });
@@ -65,7 +65,11 @@ function sqlToTable(uInt8ArraySQLdb) {
     deckNotes[0].values.forEach(
         function(val) { notes.push(arrayToObj(val[0].split(ankiSeparator))); });
     deckNotes = notes;
+
+    // Visualize!
     tabulate(deckNotes, deckFields, "#anki");
+
+    // core5000Modify(deckName, deckNotes, deckFields);
 }
 
 function ankiBinaryToTable(ankiArray) {
@@ -113,3 +117,36 @@ $(document).ready(function() {
 
     $("#ankiFile").change(eventHandleToTable);
 });
+
+function core5000Modify(deckName, deckNotes, deckFields) {
+    if (0 == "Nayr's Japanese Core5000".localeCompare(deckName)) {
+        // Very, very sorry for using eval(), but clang-format as of LLVM 3.4.2
+        // doesn't handle Javascript regexps, though it's fixed in Subversion as
+        // of May 2014:
+        // http://lists.cs.uiuc.edu/pipermail/cfe-commits/Week-of-Mon-20140512/105327.html
+        eval('var kanaRegexp = /\\[([あ-んア-ン]+)\\]/g;');
+
+        var abbreviations =
+            "adn.,adv.,aux.,conj.,cp.,i-adj.,interj.,n.,na-adj.,num.,p.,p. "
+            "case,p. conj.,p. disc.,pron.,v.".split(',');
+        var kanaKanji = XRegExp('([\\p{Han}\\p{Katakana}\\p{Hiragana}]+) ');
+
+        // COMBINE THESE TWO!
+
+        deckNotes.map(function(note, loc, arr) {
+            // Replace [kana] with spans
+            note.Reading = note.Reading.replace(
+                kanaRegexp, function(match, kana, offset, str) {
+                    return '<span class="reading kana">' + kana + '</span>';
+                });
+
+            
+            return note;
+        });
+
+        d3.select("body").append("div").attr("id", "core5000");
+        tabulate(deckNotes, deckFields, "#core5000");
+
+    }
+    return deckNotes;
+}
