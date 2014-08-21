@@ -67,7 +67,9 @@ function sqlToTable(uInt8ArraySQLdb) {
     deckNotes = notes;
 
     // Visualize!
-    tabulate(deckNotes, deckFields, "#anki");
+    if (0 == runPreHandlers()) {
+        tabulate(deckNotes, deckFields, "#anki");
+    }
 
     // core5000Modify(deckName, deckNotes, deckFields);
 }
@@ -118,35 +120,40 @@ $(document).ready(function() {
     $("#ankiFile").change(eventHandleToTable);
 });
 
-function core5000Modify(deckName, deckNotes, deckFields) {
-    if (0 == "Nayr's Japanese Core5000".localeCompare(deckName)) {
-        // Very, very sorry for using eval(), but clang-format as of LLVM 3.4.2
-        // doesn't handle Javascript regexps, though it's fixed in Subversion as
-        // of May 2014:
-        // http://lists.cs.uiuc.edu/pipermail/cfe-commits/Week-of-Mon-20140512/105327.html
-        eval('var kanaRegexp = /\\[([あ-んア-ン]+)\\]/g;');
+function core5000Modify(deckNotes, deckFields) {
+    // Very, very sorry for using eval(), but clang-format as of LLVM 3.4.2
+    // doesn't handle Javascript regexps, though it's fixed in Subversion as
+    // of May 2014:
+    // http://lists.cs.uiuc.edu/pipermail/cfe-commits/Week-of-Mon-20140512/105327.html
+    eval('var kanaRegexp = /\\[([あ-んア-ン]+)\\]/g;');
 
-        var abbreviations =
-            "adn.,adv.,aux.,conj.,cp.,i-adj.,interj.,n.,na-adj.,num.,p.,p. "
-            "case,p. conj.,p. disc.,pron.,v.".split(',');
-        var kanaKanji = XRegExp('([\\p{Han}\\p{Katakana}\\p{Hiragana}]+) ');
+    var abbreviations =
+        "adn.,adv.,aux.,conj.,cp.,i-adj.,interj.,n.,na-adj.,num.,p.,p. "
+        "case,p. conj.,p. disc.,pron.,v.".split(',');
+    var kanaKanji = XRegExp('([\\p{Han}\\p{Katakana}\\p{Hiragana}]+) ');
 
-        // COMBINE THESE TWO!
+    // COMBINE THESE TWO!
 
-        deckNotes.map(function(note, loc, arr) {
-            // Replace [kana] with spans
-            note.Reading = note.Reading.replace(
-                kanaRegexp, function(match, kana, offset, str) {
-                    return '<span class="reading kana">' + kana + '</span>';
-                });
-
-            
-            return note;
+    deckNotes.map(function(note, loc, arr) {
+        // Replace [kana] with spans
+        note.Reading = note.Reading.replace(kanaRegexp,
+                                            function(match, kana, offset, str) {
+            return '<span class="reading kana">' + kana + '</span>';
         });
 
-        d3.select("body").append("div").attr("id", "core5000");
-        tabulate(deckNotes, deckFields, "#core5000");
+        return note;
+    });
 
-    }
+    d3.select("body").append("div").attr("id", "core5000");
+    tabulate(deckNotes, deckFields, "#core5000");
+
     return deckNotes;
+}
+
+function runPreHandlers() {
+    if (0 == "Nayr's Japanese Core5000".localeCompare(deckName)) {
+        core5000Modify(deckNotes, deckFields);
+        return 1;
+    }
+    return 0;
 }
