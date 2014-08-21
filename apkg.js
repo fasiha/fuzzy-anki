@@ -40,8 +40,8 @@ function tabulate(data, columns, containerString) {
 function sqlToTable(uInt8ArraySQLdb) {
     var db = new SQL.Database(uInt8ArraySQLdb);
 
-    col = db.exec("SELECT * FROM col");
-    var modelsFunction = Function('return ' + col[0].values[0][9]);
+    col = db.exec("SELECT models FROM col");
+    var modelsFunction = Function('return ' + col[0].values[0][0]);
     var models = modelsFunction();
 
     var fnames = [];
@@ -56,12 +56,11 @@ function sqlToTable(uInt8ArraySQLdb) {
     }
     deckFields = fnames;
 
-    // Notes table
-    deckNotes = db.exec("SELECT * FROM notes");
-
     // Visualize!
-    d3.select("body").append("div").attr("id", "anki").append("h1").text(deckName);
-    //d3.select("#anki").append("div").text(deckFields);
+    d3.select("#anki").append("h1").text(deckName);
+
+    // Notes table
+    deckNotes = db.exec("SELECT flds FROM notes");
 
     // Actual notes
     var notes = [];
@@ -73,7 +72,7 @@ function sqlToTable(uInt8ArraySQLdb) {
         return myObj;
     }
     deckNotes[0].values.forEach(function (val) {
-        notes.push(arrayToObj(val[6].split(ankiSeparator)));
+        notes.push(arrayToObj(val[0].split(ankiSeparator)));
     });
     deckNotes = notes;
     tabulate(deckNotes, deckFields, "#anki");
