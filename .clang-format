@@ -1,6 +1,5 @@
 ---
-Language:        JavaScript
-# BasedOnStyle:  Google
+# BasedOnStyle:  JavaScript
 AccessModifierOffset: -1
 ConstructorInitializerIndentWidth: 4
 AlignEscapedNewlinesLeft: true
@@ -8,7 +7,6 @@ AlignTrailingComments: true
 AllowAllParametersOfDeclarationOnNextLine: true
 AllowShortIfStatementsOnASingleLine: true
 AllowShortLoopsOnASingleLine: true
-AllowShortFunctionsOnASingleLine: true
 AlwaysBreakTemplateDeclarations: true
 AlwaysBreakBeforeMultilineStrings: true
 BreakBeforeBinaryOperators: false
@@ -24,7 +22,7 @@ MaxEmptyLinesToKeep: 1
 NamespaceIndentation: None
 ObjCSpaceBeforeProtocolList: false
 PenaltyBreakBeforeFirstCallParameter: 1
-PenaltyBreakComment: 300
+PenaltyBreakComment: 60
 PenaltyBreakString: 1000
 PenaltyBreakFirstLessLess: 120
 PenaltyExcessCharacter: 1000000
@@ -42,10 +40,8 @@ SpacesInParentheses: false
 SpacesInAngles:  false
 SpaceInEmptyParentheses: false
 SpacesInCStyleCastParentheses: false
-SpacesInContainerLiterals: true
+SpaceAfterControlStatementKeyword: true
 SpaceBeforeAssignmentOperators: true
 ContinuationIndentWidth: 4
-CommentPragmas:  '^ IWYU pragma:'
-SpaceBeforeParens: ControlStatements
 ...
 
