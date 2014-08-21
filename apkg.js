@@ -6,33 +6,25 @@ var ankiSeparator = '\x1f';
 // Huge props to http://stackoverflow.com/a/9507713/500207
 function tabulate(data, columns, containerString) {
     var table = d3.select(containerString).append("table"),
-        thead = table.append("thead"),
-        tbody = table.append("tbody");
+        thead = table.append("thead"), tbody = table.append("tbody");
 
     // append the header row
-    thead.append("tr")
-        .selectAll("th")
-        .data(columns)
-        .enter()
-        .append("th")
-            .text(function(column) { return column; });
+    thead.append("tr").selectAll("th").data(columns).enter().append("th").text(
+        function(column) { return column; });
 
     // create a row for each object in the data
-    var rows = tbody.selectAll("tr")
-        .data(data)
-        .enter()
-        .append("tr");
+    var rows = tbody.selectAll("tr").data(data).enter().append("tr");
 
     // create a cell in each row for each column
     var cells = rows.selectAll("td")
-        .data(function(row) {
-            return columns.map(function(column) {
-                return {column: column, value: row[column]};
-            });
-        })
-        .enter()
-        .append("td")
-            .html(function(d) { return d.value; });
+                    .data(function(row) {
+                        return columns.map(function(column) {
+                            return {column : column, value : row[column]};
+                        });
+                    })
+                    .enter()
+                    .append("td")
+                    .html(function(d) { return d.value; });
 
     return table;
 }
@@ -49,9 +41,8 @@ function sqlToTable(uInt8ArraySQLdb) {
         if (models.hasOwnProperty(key)) {
             // This should happen only once.
             deckName = models[key].name;
-            models[key].flds.forEach(function (val, idx, arr) {
-                fnames.push(val.name);
-            });
+            models[key].flds.forEach(
+                function(val, idx, arr) { fnames.push(val.name); });
         }
     }
     deckFields = fnames;
@@ -71,9 +62,8 @@ function sqlToTable(uInt8ArraySQLdb) {
         }
         return myObj;
     }
-    deckNotes[0].values.forEach(function (val) {
-        notes.push(arrayToObj(val[0].split(ankiSeparator)));
-    });
+    deckNotes[0].values.forEach(
+        function(val) { notes.push(arrayToObj(val[0].split(ankiSeparator))); });
     deckNotes = notes;
     tabulate(deckNotes, deckFields, "#anki");
 }
@@ -87,10 +77,39 @@ function ankiBinaryToTable(ankiArray) {
         sqlToTable(plain);
     }
 }
+
 function ankiURLToTable(ankiURL) {
     var zipxhr = new XMLHttpRequest();
     zipxhr.open('GET', ankiURL, true);
     zipxhr.responseType = 'arraybuffer';
-    zipxhr.onload = function(e) {ankiBinaryToTable(this.response);}
+    zipxhr.onload = function(e) { ankiBinaryToTable(this.response); }
     zipxhr.send();
 }
+
+$(document).ready(function() {
+    var eventHandleToTable = function(event) {
+        event.stopPropagation();
+        event.preventDefault();
+        var f = event.target.files[0];
+        if (!f) {
+            f = event.dataTransfer.files[0];
+        }
+        // console.log(f.name);
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            ankiBinaryToTable(e.target.result);
+        };
+        /* // If the callback doesn't need the File object, just use the above.
+        reader.onload = (function(theFile) {
+            return function(e) {
+                console.log(theFile.name);
+                ankiBinaryToTable(e.target.result);
+            };
+        })(f);
+        */
+        reader.readAsArrayBuffer(f);
+    };
+
+    $("#ankiFile").change(eventHandleToTable);
+});
