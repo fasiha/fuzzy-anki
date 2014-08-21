@@ -77,6 +77,7 @@ function ankiBinaryToTable(ankiArray) {
         sqlToTable(plain);
     }
 }
+
 function ankiURLToTable(ankiURL) {
     var zipxhr = new XMLHttpRequest();
     zipxhr.open('GET', ankiURL, true);
@@ -84,3 +85,31 @@ function ankiURLToTable(ankiURL) {
     zipxhr.onload = function(e) { ankiBinaryToTable(this.response); }
     zipxhr.send();
 }
+
+$(document).ready(function() {
+    var eventHandleToTable = function(event) {
+        event.stopPropagation();
+        event.preventDefault();
+        var f = event.target.files[0];
+        if (!f) {
+            f = event.dataTransfer.files[0];
+        }
+        // console.log(f.name);
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            ankiBinaryToTable(e.target.result);
+        };
+        /* // If the callback doesn't need the File object, just use the above.
+        reader.onload = (function(theFile) {
+            return function(e) {
+                console.log(theFile.name);
+                ankiBinaryToTable(e.target.result);
+            };
+        })(f);
+        */
+        reader.readAsArrayBuffer(f);
+    };
+
+    $("#ankiFile").change(eventHandleToTable);
+});
