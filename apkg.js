@@ -15,25 +15,25 @@ function tabulate(datatable, columns, containerString) {
         .enter()
         .append("th")
         .text(function(column) { return column; })
-        .attr("class",
-              function(d) { return 'field-' + d.replace(" ", "-"); });
+        .attr("class", function(d) { return 'field-' + d.replace(" ", "-"); });
 
     // create a row for each object in the data
     var rows = tbody.selectAll("tr").data(datatable).enter().append("tr");
 
     // create a cell in each row for each column
-    var cells =
-        rows.selectAll("td")
-            .data(
-                 function(row) {
-                     return columns.map(function(column) {
-                         return {column : column, value : row[column]};
-                     });
-                 })
-            .enter()
-            .append("td")
-            .html(function(d) { return d.value; })
-            .attr("class", function(d) { return 'field-'+d.column.replace(" ", "-"); });
+    var cells = rows.selectAll("td")
+                    .data(
+                         function(row) {
+                             return columns.map(function(column) {
+                                 return {column : column, value : row[column]};
+                             });
+                         })
+                    .enter()
+                    .append("td")
+                    .html(function(d) { return d.value; })
+                    .attr("class", function(d) {
+                        return 'field-' + d.column.replace(" ", "-");
+                    });
 
     return table;
 }
@@ -247,10 +247,10 @@ case,p. conj.,p. disc.,pron.,v.".split(',');
     function combineJunk(indicator_array, data_array) {
         var i = 1;
         while (i < indicator_array.length) {
-            if (indicator_array[i] == indicator_array[i - 1] && indicator_array[i] > 0) {
+            if (indicator_array[i] == indicator_array[i - 1] &&
+                indicator_array[i] > 0) {
                 indicator_array.splice(i - 1, 2, 1);
-                data_array.splice(i - 1, 2,
-                                   data_array[i - 1] + data_array[i]);
+                data_array.splice(i - 1, 2, data_array[i - 1] + data_array[i]);
             } else {
                 i++;
             }
