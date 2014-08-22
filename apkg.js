@@ -9,18 +9,31 @@ function tabulate(datatable, columns, containerString) {
         thead = table.append("thead"), tbody = table.append("tbody");
 
     // append the header row
-    thead.append("tr").selectAll("th").data(columns).enter().append("th").text(
-        function(column) { return column; });
+    thead.append("tr")
+        .selectAll("th")
+        .data(columns)
+        .enter()
+        .append("th")
+        .text(function(column) { return column; })
+        .attr("class",
+              function(d) { return 'field-' + d.replace(" ", "-"); });
 
     // create a row for each object in the data
     var rows = tbody.selectAll("tr").data(datatable).enter().append("tr");
 
     // create a cell in each row for each column
-    var cells = rows.selectAll("td").data(function(row) {
-        return columns.map(function(column) {
-            return {column : column, value : row[column]};
-        });
-    }).enter().append("td").html(function(d) { return d.value; });
+    var cells =
+        rows.selectAll("td")
+            .data(
+                 function(row) {
+                     return columns.map(function(column) {
+                         return {column : column, value : row[column]};
+                     });
+                 })
+            .enter()
+            .append("td")
+            .html(function(d) { return d.value; })
+            .attr("class", function(d) { return 'field-'+d.column.replace(" ", "-"); });
 
     return table;
 }
@@ -43,9 +56,6 @@ function sqlToTable(uInt8ArraySQLdb) {
     }
     deckFields = fnames;
 
-    // Visualize!
-    d3.select("#anki").append("h1").text(deckName);
-
     // Notes table
     deckNotes = db.exec("SELECT flds FROM notes");
 
@@ -63,11 +73,10 @@ function sqlToTable(uInt8ArraySQLdb) {
     deckNotes = notes;
 
     // Visualize!
-    if (0 == runPreHandlers()) {
+    if (0 == specialDisplayHandlers()) {
+        d3.select("#anki").append("h1").text(deckName);
         tabulate(deckNotes, deckFields, "#anki");
     }
-
-    // core5000Modify(deckName, deckNotes, deckFields);
 }
 
 function ankiBinaryToTable(ankiArray) {
@@ -113,6 +122,7 @@ $(document).ready(function() {
 
     $("#ankiFile").change(eventHandleToTable);
 
+    // Only for local development
     // ankiURLToTable('/n.apkg');
 });
 
@@ -135,6 +145,9 @@ $(document).ready(function() {
 *than one part-of-speech).
 */
 function core5000Modify(deckNotes, deckFields) {
+    d3.select("body").append("div").attr("id", "core5000");
+    d3.select("#core5000").append("h1").text(deckName);
+
     //------------------------------------------------------------
     // Variables and functions to help deal with the "Word" column
     //------------------------------------------------------------
@@ -294,13 +307,20 @@ case,p. conj.,p. disc.,pron.,v.".split(',');
     //-------------------------
     // Visualization and return
     //-------------------------
-    d3.select("body").append("div").attr("id", "core5000");
     tabulate(deckNotes, deckFields, "#core5000");
+
+    // Instead of setting the styles of thousands of <td> tags individually,
+    // just slash on a CSS tag to the DOM.
+    d3.select("head").insert("style", ":first-child").text(
+        "th.field-Meaning, th.field-Sound {font-size: 10%}\
+th.field-Frequency-Order {font-size:50%}\
+td.field-Expression, td.field-Reading {font-size: 150%}\
+td.field-English-Translation, td.field-Word {font-size: 75%}");
 
     return deckNotes;
 }
 
-function runPreHandlers() {
+function specialDisplayHandlers() {
     if (0 == "Nayr's Japanese Core5000".localeCompare(deckName)) {
         core5000Modify(deckNotes, deckFields);
         return 1;

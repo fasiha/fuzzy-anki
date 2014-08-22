@@ -19,3 +19,12 @@ body {
 .target-words-meaning {
     color: purple;
 }
+
+table {
+    border-spacing: 0px;
+    border-collapse: collapse;
+}
+
+td {
+    border: 1px solid #dddddd;
+}
