@@ -1,10 +1,58 @@
-.kana, .reading {
-    font-size: 50%;
+body {
+    font-family: Helvetica, "Helvetica Neue", Arial, "ヒラギノ角ゴ Pro W3", "Hiragino Kaku Gothic Pro", Osaka, "メイリオ", Meiryo, "ＭＳ Ｐゴシック", "MS PGothic", "小塚明朝 Pro L", serif;
+}
+
+.heading {
+    text-align: center;
+}
+h2.heading, h3.heading {
+    margin-top: -0.5em;
+    font-weight: normal;
+}
+
+table {
+    border-spacing: 0px;
+    border-collapse: collapse;
+}
+
+td {
+    border: 1px solid #dddddd;
+}
+
+a, a:visited {
+    color: #777;
+    text-decoration: underline;
+}
+
+a:hover {
+    background-color: #dFdFdF;
+    text-decoration: none;
+}
+
+.ankiweb-download {
+    border-radius: 4px;
+    background: #3a3;
+    border-color: #000;
+    border-style: solid;
+    border-width: 1px;
+    color: #fff;
+    display: inline-block;
+    /*font: 20px/25px Helvetica Neue,Arial,"Lucida Grande",Sans-serif;
+padding: 0.5em 1em;
+
+    */
+    padding: .1em;
+    margin: 0;
+    overflow: hidden;
+    text-decoration: none;
+    font-weight: bold;
     vertical-align: middle;
 }
 
-body {
-    font-family: Helvetica, "Helvetica Neue", Arial, "ヒラギノ角ゴ Pro W3", "Hiragino Kaku Gothic Pro", Osaka, "メイリオ", Meiryo, "ＭＳ Ｐゴシック", "MS PGothic", "小塚明朝 Pro L", serif;
+/* For Nayr's Core5000 deck */
+.kana, .reading {
+    font-size: 50%;
+    vertical-align: middle;
 }
 
 .target-words {
@@ -18,13 +66,4 @@ body {
 }
 .target-words-meaning {
     color: purple;
-}
-
-table {
-    border-spacing: 0px;
-    border-collapse: collapse;
-}
-
-td {
-    border: 1px solid #dddddd;
 }

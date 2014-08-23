@@ -1,3 +1,5 @@
+var GLOBAL_CORS_PROXY = "http://cors-anywhere.herokuapp.com/";
+
 var deckNotes;
 var deckFields;
 var deckName;
@@ -74,7 +76,7 @@ function sqlToTable(uInt8ArraySQLdb) {
 
     // Visualize!
     if (0 == specialDisplayHandlers()) {
-        d3.select("#anki").append("h1").text(deckName);
+        d3.select("#anki").append("h2").text(deckName);
         tabulate(deckNotes, deckFields, "#anki");
     }
 }
@@ -89,9 +91,12 @@ function ankiBinaryToTable(ankiArray) {
     }
 }
 
-function ankiURLToTable(ankiURL) {
+function ankiURLToTable(ankiURL, useCorsProxy, corsProxyURL) {
+    if (typeof useCorsProxy === 'undefined') { useCorsProxy = false; }
+    if (typeof corsProxyURL === 'undefined') { corsProxyURL = GLOBAL_CORS_PROXY; }
+
     var zipxhr = new XMLHttpRequest();
-    zipxhr.open('GET', ankiURL, true);
+    zipxhr.open('GET', (useCorsProxy ? corsProxyURL : "") + ankiURL, true);
     zipxhr.responseType = 'arraybuffer';
     zipxhr.onload = function(e) { ankiBinaryToTable(this.response); };
     zipxhr.send();
@@ -122,6 +127,11 @@ $(document).ready(function() {
 
     $("#ankiFile").change(eventHandleToTable);
 
+    $("#ankiURLSubmit").click(function(event) {
+        ankiURLToTable($("#ankiURL").val(), true);
+        $("#ankiURL").val('');
+    });
+
     // Only for local development
     // ankiURLToTable('/n.apkg');
 });
@@ -146,7 +156,7 @@ $(document).ready(function() {
 */
 function core5000Modify(deckNotes, deckFields) {
     d3.select("body").append("div").attr("id", "core5000");
-    d3.select("#core5000").append("h1").text(deckName);
+    d3.select("#core5000").append("h2").text(deckName);
 
     //------------------------------------------------------------
     // Variables and functions to help deal with the "Word" column
@@ -258,6 +268,7 @@ case,p. conj.,p. disc.,pron.,v.".split(',');
         return {data_array : data_array, indicator_array : indicator_array};
     }
 
+    // Get rid of &nbsp; and such. It'll mess up my regexping.
     function decodeHtml(html) {
         var txt = document.createElement("textarea");
         txt.innerHTML = html;
@@ -322,7 +333,7 @@ td.field-English-Translation, td.field-Word {font-size: 75%}");
 
 function specialDisplayHandlers() {
     if (0 == "Nayr's Japanese Core5000".localeCompare(deckName)) {
-        core5000Modify(deckNotes, deckFields);
+        deckNotes = core5000Modify(deckNotes, deckFields);
         return 1;
     }
     return 0;
