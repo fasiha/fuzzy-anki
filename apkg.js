@@ -179,16 +179,12 @@ case,p. conj.,p. disc.,pron.,v.".split(',');
     // They've been carefully chosen to work with wrinkles in the database,
     // e.g., more than one of the above four-step sequences in a single row,
     // multiple adjacent parts-of-speech, or multiple
-    // part-of-speech-and-translation pairs.
+    // part-of-speech-and-translation pairs. All these strings intended to
+    // become regexps will go through XRegExp, which expands out the
+    // Han/Katakana/Hiragana groups.
     var kanaKanjiWordRegexp = '([^a-z]+)';
     var romajiRegexp = '([a-z\\s,\\-()’]+)';
     var partOfSpeechRegexp = '((?: |,|' + abbreviationsOr + ')+)';
-
-    // This string's regexp is used to separate multiple sequences of #1--#4
-    // above. All these strings intended to become regexps will go through
-    // XRegExp, which expands out the Han/Katakana/Hiragana groups.
-    var completeWordRegexp =
-        '([^a-z]+)([^\\p{Han}\\p{Katakana}\\p{Hiragana}]+)';
 
     // Break up a string containing one {kanji/kana + roumaji + part-of-speech +
     // translations} sequence. The critical idea in this function is to split
@@ -279,7 +275,8 @@ case,p. conj.,p. disc.,pron.,v.".split(',');
         if (s.search("&") >= 0) {
             s = decodeHtml(s);
         }
-        var arr = s.match(XRegExp(completeWordRegexp, 'g'));
+
+        var arr = s.split("<div>");
 
         return arr.map(function(s) {
             var decomp = bar(s);
@@ -290,8 +287,8 @@ case,p. conj.,p. disc.,pron.,v.".split(',');
             }).join(" ");
             return '<span class="target-words">' + decomp.word +
                    '</span> <span class="target-words-romaji">' +
-                   decomp.romaji + " " + posTrans + '</span>'
-        }).join("");
+                   decomp.romaji + "</span> " + posTrans;
+        }).join("<div>");
     };
 
     //--------------------------------------------
@@ -323,10 +320,10 @@ case,p. conj.,p. disc.,pron.,v.".split(',');
     // Instead of setting the styles of thousands of <td> tags individually,
     // just slash on a CSS tag to the DOM.
     d3.select("head").insert("style", ":first-child").text(
-        "th.field-Meaning, th.field-Sound {font-size: 10%}\
-th.field-Frequency-Order {font-size:50%}\
-td.field-Expression, td.field-Reading {font-size: 150%}\
-td.field-English-Translation, td.field-Word {font-size: 75%}");
+        "#core5000 th.field-Meaning, #core5000 th.field-Sound {font-size: 10%}\
+#core5000 th.field-Frequency-Order {font-size:50%}\
+#core5000 td.field-Expression, #core5000 td.field-Reading {font-size: 150%}\
+#core5000 td.field-English-Translation, #core5000  td.field-Word {font-size: 75%}");
 
     return deckNotes;
 }
