@@ -92,8 +92,12 @@ function ankiBinaryToTable(ankiArray, options) {
 }
 
 function ankiURLToTable(ankiURL, useCorsProxy, corsProxyURL) {
-    if (typeof useCorsProxy === 'undefined') { useCorsProxy = false; }
-    if (typeof corsProxyURL === 'undefined') { corsProxyURL = GLOBAL_CORS_PROXY; }
+    if (typeof useCorsProxy === 'undefined') {
+        useCorsProxy = false;
+    }
+    if (typeof corsProxyURL === 'undefined') {
+        corsProxyURL = GLOBAL_CORS_PROXY;
+    }
 
     var zipxhr = new XMLHttpRequest();
     zipxhr.open('GET', (useCorsProxy ? corsProxyURL : "") + ankiURL, true);
@@ -102,7 +106,7 @@ function ankiURLToTable(ankiURL, useCorsProxy, corsProxyURL) {
     zipxhr.send();
 }
 
-function valuesFieldsToObj (fields, values) {
+function arrayNamesToObj(fields, values) {
     var obj = {};
     for (i in values) {
         obj[fields[i]] = values[i];
@@ -126,16 +130,19 @@ function ankiSQLToRevlogTable(array, options) {
     var decks = $.parseJSON(decksTable[1]);
 
     // The reviews
-    var query = 'SELECT revlog.id, notes.flds, notes.sfld, cards.reps, cards.lapses, cards.did, notes.mid \
+    var query =
+        'SELECT revlog.id, notes.flds, notes.sfld, cards.reps, cards.lapses, cards.did, notes.mid \
 FROM revlog \
 JOIN notes ON revlog.cid=notes.id \
 JOIN cards ON revlog.cid=cards.nid \
-ORDER BY revlog.id' + (options.recent ? " DESC " : "") + (options.limit && options.limit > 0 ? " LIMIT " + options.limit : "");
-    revlogTable  = sqlite.exec(query)[0].values; // LIMIT 100?
+ORDER BY revlog.id' +
+        (options.recent ? " DESC " : "") +
+        (options.limit && options.limit > 0 ? " LIMIT " + options.limit : "");
+    revlogTable = sqlite.exec(query)[0].values;
     var revlogTableNames =
         "revId,noteFacts,noteSortKeyFact,reps,lapses,deckId,modelId".split(',');
     revlogTable = revlogTable.map(
-        function(arr) { return valuesFieldsToObj(revlogTableNames, arr); });
+        function(arr) { return arrayNamesToObj(revlogTableNames, arr); });
 
     revlogTable.map(function(rev) {
         // Add deck name
@@ -143,8 +150,10 @@ ORDER BY revlog.id' + (options.recent ? " DESC " : "") + (options.limit && optio
         delete rev.deckId;
 
         // Convert facts string to a fact object
-        var fieldNames = models[rev.modelId].flds.map(function (f) {return f.name;});
-        rev.noteFacts = valuesFieldsToObj(fieldNames, rev.noteFacts.split(ankiSeparator));
+        var fieldNames =
+            models[rev.modelId].flds.map(function(f) { return f.name; });
+        rev.noteFacts =
+            arrayNamesToObj(fieldNames, rev.noteFacts.split(ankiSeparator));
         // Add model name
         rev.modelName = models[rev.modelId].name;
         delete rev.modelId;
@@ -166,7 +175,8 @@ ORDER BY revlog.id' + (options.recent ? " DESC " : "") + (options.limit && optio
 
     // Export
     var csv = convert(revlogTable,
-                      "dateString,noteSortKeyFact,deckName,modelName,lapses,reps,noteFactsJSON".split(','));
+                      "dateString,noteSortKeyFact,deckName,modelName,lapses,\
+reps,noteFactsJSON".split(','));
     var blob = new Blob([csv], {type : 'data:text/csv;charset=utf-8'});
     var url = URL.createObjectURL(blob);
     d3.select("div#reviews")
@@ -177,7 +187,9 @@ ORDER BY revlog.id' + (options.recent ? " DESC " : "") + (options.limit && optio
         .text("Download CSV!");
 }
 
-// Lifted from https://github.com/matteofigus/nice-json2csv/blob/master/lib/nice-json2csv.js (MIT License)
+// Lifted from
+// https://github.com/matteofigus/nice-json2csv/blob/master/lib/nice-json2csv.js
+// (MIT License)
 function fixInput(parameter) {
     if (parameter && parameter.length == undefined &&
         _.keys(parameter).length > 0)
@@ -223,9 +235,11 @@ function convert(data, headers, suppressHeader) {
     for (var i = 0; i < data.length; i++) {
         var row = [];
         _.forEach(columns, function(column) {
-            var value = typeof data[i][column] == "object" && data[i][column] &&
-                            "[Object]" ||
-                        typeof data[i][column] == "number" && String(data[i][column]) || "";
+            var value =
+                typeof data[i][column] == "object" && data[i][column] &&
+                    "[Object]" ||
+                typeof data[i][column] == "number" && String(data[i][column]) ||
+                "";
             row.push(value);
         });
         rows.push(row);
@@ -246,7 +260,8 @@ $(document).ready(function() {
 
         var reader = new FileReader();
         if ("function" in event.data) {
-            reader.onload = function(e) { event.data.function(e.target.result); };
+            reader.onload =
+                function(e) { event.data.function(e.target.result); };
         } else {
             reader.onload = function(e) { ankiBinaryToTable(e.target.result); };
         }
