@@ -131,7 +131,7 @@ function ankiSQLToRevlogTable(array, options) {
 
     // The reviews
     var query =
-        'SELECT revlog.id, notes.flds, notes.sfld, cards.reps, cards.lapses, cards.did, notes.mid \
+        'SELECT revlog.id, revlog.ease, revlog.time, notes.flds, notes.sfld, cards.reps, cards.lapses, cards.did, notes.mid \
 FROM revlog \
 JOIN notes ON revlog.cid=notes.id \
 JOIN cards ON revlog.cid=cards.nid \
@@ -140,7 +140,8 @@ ORDER BY revlog.id' +
         (options.limit && options.limit > 0 ? " LIMIT " + options.limit : "");
     revlogTable = sqlite.exec(query)[0].values;
     var revlogTableNames =
-        "revId,noteFacts,noteSortKeyFact,reps,lapses,deckId,modelId".split(',');
+        "revId,ease,timeToAnswer,noteFacts,noteSortKeyFact,reps,lapses,deckId,\
+modelId".split(',');
     revlogTable = revlogTable.map(
         function(arr) { return arrayNamesToObj(revlogTableNames, arr); });
 
@@ -164,18 +165,21 @@ ORDER BY revlog.id' +
 
         // Add a JSON representation of facts
         rev.noteFactsJSON = JSON.stringify(rev.noteFacts);
+
+        // Switch timeToAnswer from milliseconds to seconds
+        rev.timeToAnswer /= 1000;
     });
 
     // Display
     d3.select("body").append("div").attr("id", "reviews");
     tabulate(revlogTable,
-             "date,noteSortKeyFact,deckName,modelName,lapses,reps,noteFactsJSON"
-                 .split(','),
+             "date,ease,timeToAnswer,noteSortKeyFact,deckName,modelName,lapses,\
+reps,noteFactsJSON".split(','),
              "div#reviews");
 
     // Export
     var csv = convert(revlogTable,
-                      "dateString,noteSortKeyFact,deckName,modelName,lapses,\
+                      "dateString,ease,timeToAnswer,noteSortKeyFact,deckName,modelName,lapses,\
 reps,noteFactsJSON".split(','));
     var blob = new Blob([csv], {type : 'data:text/csv;charset=utf-8'});
     var url = URL.createObjectURL(blob);
@@ -239,7 +243,7 @@ function convert(data, headers, suppressHeader) {
                 typeof data[i][column] == "object" && data[i][column] &&
                     "[Object]" ||
                 typeof data[i][column] == "number" && String(data[i][column]) ||
-                "";
+                data[i][column] || "";
             row.push(value);
         });
         rows.push(row);
