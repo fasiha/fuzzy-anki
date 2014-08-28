@@ -6,6 +6,7 @@
 
     <script src="unzip.min.js" charset="utf-8"></script>
     <script src="xregexp-all-min.js" charset="utf-8"></script>
+    <script src="underscore-min.js" charset="utf-8"></script>
     <script src="apkg.js" charset="utf-8"></script>
     <meta charset="UTF-8">
     <link rel="stylesheet" type="text/css" href="apkg.css">
@@ -13,14 +14,21 @@
 </head>
 <body>
     <h1 class="heading">Fuzzy-Anki Deck Browser</h1>
-    <h2 class="heading">Turn your web browser into an <a href="http://ankisrs.net">Anki</a> deck browser</h2>
+    <h2 class="heading">Turn your web browser into an <a href="http://ankisrs.net">Anki</a> browser!</h2>
 
     <div id="fileSelector">
+    <h3>Browse notes and facts</h3>
     <ul>
+    <li>Upload an Anki APKG file from your computer: <input type="file" id="ankiFile" name="files">.
     <li>
-    Enter a URL of a public Anki deck: <input type="text" id="ankiURL" size="20"> <button id="ankiURLSubmit">Submit URL</button>. (Note to <a href="https://ankiweb.net/shared/decks/">Ankiweb Shared Decks</a> users: use deck's <span class="ankiweb-download">Download</span> link, not the URL of the page describing it.)
-    <li>Or upload an Anki APKG file from your computer: <input type="file" id="ankiFile" name="files">.
+    <em>Experimental!</em> Enter a URL of a public Anki deck: <input type="text" id="ankiURL" size="20"> <button id="ankiURLSubmit">Submit URL</button>. (Note to <a href="https://ankiweb.net/shared/decks/">Ankiweb Shared Decks</a> users: use deck's <span class="ankiweb-download">Download</span> link, not the URL of the page describing it.)
     </ul>
+
+    <h3>View reviews</h3>
+    <ol>
+        <li>Get only <input type="text" id="sqliteLimit" size="5" value="100"> reviews. <input type="checkbox" id="sqliteRecent" checked> Most recent? (If unchecked, show the oldest.)
+        <li>Upload your collection.anki2 file, usually found in <tt>Documents/Anki/&lt;your name&gt;/collection.anki2</tt> <input type="file" id="sqliteFile" name="files">
+    </ol>
 
     </div>
 

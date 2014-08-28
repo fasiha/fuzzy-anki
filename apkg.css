@@ -29,6 +29,16 @@ a:hover {
     text-decoration: none;
 }
 
+a.csv-download {
+    border-radius: 4px;
+    border-color: #000;
+    background: #3a3;
+    color: #fff;
+    padding: .5em;
+    margin: .5em;
+    font-weight: bold;
+}
+
 .ankiweb-download {
     border-radius: 4px;
     background: #3a3;

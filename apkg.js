@@ -81,7 +81,7 @@ function sqlToTable(uInt8ArraySQLdb) {
     }
 }
 
-function ankiBinaryToTable(ankiArray) {
+function ankiBinaryToTable(ankiArray, options) {
     var compressed = new Uint8Array(ankiArray);
     var unzip = new Zlib.Unzip(compressed);
     var filenames = unzip.getFilenames();
@@ -102,6 +102,138 @@ function ankiURLToTable(ankiURL, useCorsProxy, corsProxyURL) {
     zipxhr.send();
 }
 
+function valuesFieldsToObj (fields, values) {
+    var obj = {};
+    for (i in values) {
+        obj[fields[i]] = values[i];
+    }
+    return obj;
+}
+
+var revlogTable;
+function ankiSQLToRevlogTable(array, options) {
+    if (typeof options === 'undefined') {
+        options = {limit : 100, recent : true};
+    }
+
+    var sqliteBinary = new Uint8Array(array);
+    var sqlite = new SQL.Database(sqliteBinary);
+
+    // The deck name is in decks, and the field names are in models
+    // which are JSON, and have to be handled outside SQL.
+    var decksTable = sqlite.exec('SELECT models,decks FROM col')[0].values[0];
+    var models = $.parseJSON(decksTable[0]);
+    var decks = $.parseJSON(decksTable[1]);
+
+    // The reviews
+    var query = 'SELECT revlog.id, notes.flds, notes.sfld, cards.reps, cards.lapses, cards.did, notes.mid \
+FROM revlog \
+JOIN notes ON revlog.cid=notes.id \
+JOIN cards ON revlog.cid=cards.nid \
+ORDER BY revlog.id' + (options.recent ? " DESC " : "") + (options.limit && options.limit > 0 ? " LIMIT " + options.limit : "");
+    revlogTable  = sqlite.exec(query)[0].values; // LIMIT 100?
+    var revlogTableNames =
+        "revId,noteFacts,noteSortKeyFact,reps,lapses,deckId,modelId".split(',');
+    revlogTable = revlogTable.map(
+        function(arr) { return valuesFieldsToObj(revlogTableNames, arr); });
+
+    revlogTable.map(function(rev) {
+        // Add deck name
+        rev.deckName = decks[rev.deckId].name;
+        delete rev.deckId;
+
+        // Convert facts string to a fact object
+        var fieldNames = models[rev.modelId].flds.map(function (f) {return f.name;});
+        rev.noteFacts = valuesFieldsToObj(fieldNames, rev.noteFacts.split(ankiSeparator));
+        // Add model name
+        rev.modelName = models[rev.modelId].name;
+        delete rev.modelId;
+
+        // Add review date
+        rev.date = new Date(rev.revId);
+        rev.dateString = rev.date.toString();
+
+        // Add a JSON representation of facts
+        rev.noteFactsJSON = JSON.stringify(rev.noteFacts);
+    });
+
+    // Display
+    d3.select("body").append("div").attr("id", "reviews");
+    tabulate(revlogTable,
+             "date,noteSortKeyFact,deckName,modelName,lapses,reps,noteFactsJSON"
+                 .split(','),
+             "div#reviews");
+
+    // Export
+    var csv = convert(revlogTable,
+                      "dateString,noteSortKeyFact,deckName,modelName,lapses,reps,noteFactsJSON".split(','));
+    var blob = new Blob([csv], {type : 'data:text/csv;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    d3.select("div#reviews")
+        .insert("p", ":first-child")
+        .insert("a")
+        .attr("href", url)
+        .classed('csv-download', true)
+        .text("Download CSV!");
+}
+
+// Lifted from https://github.com/matteofigus/nice-json2csv/blob/master/lib/nice-json2csv.js (MIT License)
+function fixInput(parameter) {
+    if (parameter && parameter.length == undefined &&
+        _.keys(parameter).length > 0)
+        parameter = [parameter];  // data is a json object instead of an array
+                                  // of json objects
+
+    return parameter;
+}
+function getColumns(data) {
+    var columns = [];
+
+    for (var i = 0; i < data.length; i++)
+        columns = _.union(columns, _.keys(data[i]));
+
+    return columns;
+}
+
+function convertToCsv(data) {
+    return JSON.stringify(data)
+        .replace(/],\[/g, '\n')
+        .replace(/]]/g, '')
+        .replace(/\[\[/g, '')
+        .replace(/\\"/g, '""');
+}
+function convert(data, headers, suppressHeader) {
+    if (!_.isBoolean(suppressHeader)) suppressHeader = false;
+
+    data = fixInput(data);
+
+    if (data == null || data.length == 0) {
+        return "";
+    }
+
+    var columns = headers ? ((typeof headers == 'string') ? [headers] : headers)
+                          : getColumns(data);
+
+    var rows = [];
+
+    if (!suppressHeader) {
+        rows.push(columns);
+    }
+
+    for (var i = 0; i < data.length; i++) {
+        var row = [];
+        _.forEach(columns, function(column) {
+            var value = typeof data[i][column] == "object" && data[i][column] &&
+                            "[Object]" ||
+                        typeof data[i][column] == "number" && String(data[i][column]) || "";
+            row.push(value);
+        });
+        rows.push(row);
+    }
+
+    return convertToCsv(rows);
+}
+
 $(document).ready(function() {
     var eventHandleToTable = function(event) {
         event.stopPropagation();
@@ -113,7 +245,11 @@ $(document).ready(function() {
         // console.log(f.name);
 
         var reader = new FileReader();
-        reader.onload = function(e) { ankiBinaryToTable(e.target.result); };
+        if ("function" in event.data) {
+            reader.onload = function(e) { event.data.function(e.target.result); };
+        } else {
+            reader.onload = function(e) { ankiBinaryToTable(e.target.result); };
+        }
         /* // If the callback doesn't need the File object, just use the above.
         reader.onload = (function(theFile) {
             return function(e) {
@@ -125,12 +261,25 @@ $(document).ready(function() {
         reader.readAsArrayBuffer(f);
     };
 
-    $("#ankiFile").change(eventHandleToTable);
-
+    // Deck browser
+    $("#ankiFile").change({"function" : ankiBinaryToTable}, eventHandleToTable);
     $("#ankiURLSubmit").click(function(event) {
         ankiURLToTable($("#ankiURL").val(), true);
         $("#ankiURL").val('');
     });
+
+    // Review browser
+    $("#sqliteFile")
+        .change({
+                  "function" :
+                      function(data) {
+                          ankiSQLToRevlogTable(data, {
+                              limit : parseInt($('input#sqliteLimit').val()),
+                              recent : $('input#sqliteRecent').is(':checked')
+                          });
+                      },
+                },
+                eventHandleToTable);
 
     // Only for local development
     // ankiURLToTable('/n.apkg');
