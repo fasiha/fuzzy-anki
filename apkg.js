@@ -138,17 +138,20 @@ JOIN cards ON revlog.cid=cards.nid \
 ORDER BY revlog.id' +
         (options.recent ? " DESC " : "") +
         (options.limit && options.limit > 0 ? " LIMIT " + options.limit : "");
-    revlogTable = sqlite.exec(query)[0].values;
-    var revlogTableNames =
+    var queryResultNames =
         "revId,ease,timeToAnswer,noteFacts,noteSortKeyFact,reps,lapses,deckId,\
 modelId".split(',');
-    revlogTable = revlogTable.map(
-        function(arr) { return arrayNamesToObj(revlogTableNames, arr); });
 
-    revlogTable.map(function(rev) {
+    // Run the query and convert the resulting array of arrays into an array of
+    // objects
+    revlogTable = sqlite.exec(query)[0].values;
+    revlogTable = revlogTable.map(
+        function(arr) { return arrayNamesToObj(queryResultNames, arr); });
+
+    revlogTable.forEach(function(rev) {
         // Add deck name
         rev.deckName = decks[rev.deckId].name;
-        delete rev.deckId;
+        // delete rev.deckId;
 
         // Convert facts string to a fact object
         var fieldNames =
@@ -157,7 +160,7 @@ modelId".split(',');
             arrayNamesToObj(fieldNames, rev.noteFacts.split(ankiSeparator));
         // Add model name
         rev.modelName = models[rev.modelId].name;
-        delete rev.modelId;
+        // delete rev.modelId;
 
         // Add review date
         rev.date = new Date(rev.revId);
@@ -170,25 +173,52 @@ modelId".split(',');
         rev.timeToAnswer /= 1000;
     });
 
-    // Display
-    d3.select("body").append("div").attr("id", "reviews");
+    // Create div for results
+    displayRevlogOutputOptions();
+}
+
+function displayRevlogOutputOptions() {
+    var ul = d3.select("body")
+                 .append("div")
+                 .attr("id", "reviews")
+                 .append("div")
+                 .attr("id", "reviews-options")
+                 .append("ul");
+    var tooMuch = 101;
+    if (revlogTable.length > tooMuch) {
+        ul.append('li')
+            .append("button")
+            .text("Tabulate " + revlogTable.length + " review" +
+                  (revlogTable.length > 1 ? "s" : ""))
+            .on("click", function() { tabulateReviews(); });
+        ul.append('li').append("button").text("Generate CSV spreadsheet").on(
+            "click", function() { generateReviewsCSV(); });
+    } else {
+        tabulateReviews();
+        generateReviewsCSV();
+    }
+}
+
+function generateReviewsCSV() {  // Export
+    var csv = convert(
+        revlogTable,
+        "dateString,ease,timeToAnswer,noteSortKeyFact,deckName,modelName,lapses,\
+reps,noteFactsJSON".split(','));
+    var blob = new Blob([csv], {type : 'data:text/csv;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    d3.select("div#reviews-options ul")
+        .append("li")
+        .append("button")
+        .attr("href", url)
+        .classed('csv-download', true)
+        .text("Download CSV!");
+}
+
+function tabulateReviews() {
     tabulate(revlogTable,
              "date,ease,timeToAnswer,noteSortKeyFact,deckName,modelName,lapses,\
 reps,noteFactsJSON".split(','),
              "div#reviews");
-
-    // Export
-    var csv = convert(revlogTable,
-                      "dateString,ease,timeToAnswer,noteSortKeyFact,deckName,modelName,lapses,\
-reps,noteFactsJSON".split(','));
-    var blob = new Blob([csv], {type : 'data:text/csv;charset=utf-8'});
-    var url = URL.createObjectURL(blob);
-    d3.select("div#reviews")
-        .insert("p", ":first-child")
-        .insert("a")
-        .attr("href", url)
-        .classed('csv-download', true)
-        .text("Download CSV!");
 }
 
 // Lifted from
@@ -210,7 +240,6 @@ function getColumns(data) {
 
     return columns;
 }
-
 function convertToCsv(data) {
     return JSON.stringify(data)
         .replace(/],\[/g, '\n')
