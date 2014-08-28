@@ -187,12 +187,17 @@ function displayRevlogOutputOptions() {
     var tooMuch = 101;
     if (revlogTable.length > tooMuch) {
         ul.append('li')
+            .attr("id", "tabulate-request")
             .append("button")
             .text("Tabulate " + revlogTable.length + " review" +
                   (revlogTable.length > 1 ? "s" : ""))
             .on("click", function() { tabulateReviews(); });
-        ul.append('li').append("button").text("Generate CSV spreadsheet").on(
-            "click", function() { generateReviewsCSV(); });
+
+        ul.append('li')
+            .attr("id", "export-request")
+            .append("button")
+            .text("Generate CSV spreadsheet")
+            .on("click", function() { generateReviewsCSV(); });
     } else {
         tabulateReviews();
         generateReviewsCSV();
@@ -207,8 +212,8 @@ reps,noteFactsJSON".split(','));
     var blob = new Blob([csv], {type : 'data:text/csv;charset=utf-8'});
     var url = URL.createObjectURL(blob);
     d3.select("div#reviews-options ul")
-        .append("li")
-        .append("button")
+        .append("li").attr("id", "export-completed")
+        .append("a")
         .attr("href", url)
         .classed('csv-download', true)
         .text("Download CSV!");
