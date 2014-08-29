@@ -434,27 +434,34 @@ function revlogVisualizeProgress() {
         legend : {show : false}
     });
 
-
+    //-----------
     // Normalized
+    //-----------
     var current = new Date().getTime();
     var dayDiff = function(initial) {
         return (current - initial.getTime()) / (1000 * 3600 * 24);
     };
-    var lapsesTime = temporalIndexToKeyFactArray.map(function(key, idx){return [
-        revDb[key].lapses + unitRandom(),
-        dayDiff(revDb[key].dateLearned) + unitRandom(),
-        idx
-    ]});
-    lapsesTime.unshift([ 'lapses', 'daysKnown', 'index0' ]);
+    jitteredTimeToCard = {};
+    var lapsesTime = temporalIndexToKeyFactArray.map(function(key, idx) {
+        var jitteredTime = dayDiff(revDb[key].dateLearned) + unitRandom();
+        jitteredTimeToCard[jitteredTime] = key;
+        return [ revDb[key].lapses + unitRandom(), jitteredTime ];
+    });
+    lapsesTime.unshift([ 'lapses', 'daysKnown' ]);
+
+    /*
+    var lapsesTimesTranspose = [];
+    for (var inputCol = 0;inputCol < lapsesTime[0].length; inputCol++) {
+        lapsesTimesTranspose[inputCol] = [];
+        for (var inputRow = 0; inputRow < lapsesTime.length; inputRow++) {
+            lapsesTimesTranspose[inputCol][inputRow] = lapsesTime[inputRow][inputCol];
+        }
+    }
+    */ /*data --> columns : lapsesTimesTranspose*/
 
     var lapsesDaysChart = c3.generate({
         bindto : '#scatter-norm-rep-lapse',
-        data : {
-                 x : 'daysKnown',
-                 rows : lapsesTime,
-                 type : "scatter",
-                 axes : {"index0" : "none"}
-               },
+        data : {x : 'daysKnown', rows : lapsesTime, type : "scatter"},
         axis : {
                  x : {
                        label : {text : "days known, with jitter"},
@@ -463,28 +470,49 @@ function revlogVisualizeProgress() {
                  y : {label : {text : "# lapses, with jitter"}}
                },
         legend : {show : false},
-        tooltip : {
-                    format : {
-                        title : function(d) { return "Known for " + d3.round(d) + " days"; },
-                        name :
-                            function(id) {
-                                if (id === "lapses") {
-                                    return "Lapses";
-                                }
-                                return "Card key";
-                            },
-                        value :
-                            function(value, ratio, id) {
-                                if (id === "lapses") {
-                                    return d3.round(value);
-                                }
-                                return temporalIndexToKeyFactArray[value];
-                            }
-                    }
+        tooltip :
+            {
+              contents :
+                  function(d, defaultTitleFormat, defaultValueFormat, color) {
+                      var key = jitteredTimeToCard[d[0].x];
+                      this.config.tooltip_format_title = function(d) {
+                          return "Known for " + d3.round(d) + " days (" + key +
+                                 ")";
+                      };
+                      this.config.tooltip_format_value =
+                          function(value, ratio, id) {
+                              return d3.round(value) + " (" + key + ")";
+                      };
+                      var retval = this.getTooltipContent
+                                       ? this.getTooltipContent(
+                                             d, defaultTitleFormat,
+                                             defaultValueFormat, color)
+                                       : '';
+                      return retval;
                   },
+              format : {
+                  title :
+                      function(d) {
+                          return "Known for " + d3.round(d) + " days";
+                      },
+                  name :
+                      function(id) {
+                          if (id === "lapses") {
+                              return "Lapses";
+                          }
+                          return "Card key";
+                      },
+                  value :
+                      function(value, ratio, id) {
+                          if (id === "lapses") {
+                              return d3.round(value);
+                          }
+                          return temporalIndexToKeyFactArray[value];
+                      }
+              }
+            },
         zoom : {enabled : true, extent : [ 1, 2 ]}
     });
-
 }
 
 // Lifted from
