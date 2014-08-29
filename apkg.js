@@ -233,6 +233,170 @@ reps,noteFactsJSON".split(','),
              "div#reviews");
 }
 
+function revlogVisualizeProgress() {
+    var revDb = {};
+    var keyFactId = "Kanji";
+
+    // See if revlogTable is sorted ascending or descending by examining the
+    // first two elements.
+    // NB. This will fail if the SQL query isn't sorted by time!
+    var oldestFirst = revlogTable[0].date < revlogTable[1].date;
+
+    // We wanted to know whether the oldest came first or last because a key
+    // element of this visualization is the date each note was learned.
+
+    // Build the keyFactId-indexed array using reduce since it can reduce (left)
+    // or reduceRight. Just accumulate the individual reviews. We don't need to
+    // keep track of dates, or lapses, or total reps since the database gave us
+    // that.
+    var uniqueKeysSeenSoFar = 0;
+    var temporalIndexToKeyFactArray = [];
+
+    var reductionFunction = function(dbSoFar, rev, idx) {
+        var key = rev.noteFacts[keyFactId];
+        if (key in dbSoFar) {
+            dbSoFar[key].allRevlogs.push(rev);
+        } else {
+            dbSoFar[key] = {
+                allRevlogs : [rev],
+                reps : rev.reps,
+                lapses : rev.lapses,
+                dateLearned : rev.date,
+                noteFacts : rev.noteFacts,
+                temporalIndex : uniqueKeysSeenSoFar++
+            };
+
+            temporalIndexToKeyFactArray[uniqueKeysSeenSoFar - 1] = key;
+        }
+        return dbSoFar;
+    };
+
+    // We know whether to reduce or reduceRight
+    if (oldestFirst) {
+        revDb = revlogTable.reduce(reductionFunction, {});
+    } else {
+        revDb = revlogTable.reduceRight(reductionFunction, {});
+    }
+
+    // So now we've generated an object indexed by whatever keyFactId was chosen
+    // (and potentially restricted to a deck/model) that tells us performance
+    // details about each card.
+
+    d3.select("#reviews").append("div").attr("id", "chart");
+    d3.select("#reviews").append("div").attr("id", "histogram");
+
+    //------------------------------------------------------------------------
+    // Pass rate per unique card
+    //------------------------------------------------------------------------
+    // Generate the column-wise array of arrays that c3js wants
+    var chartArr = _.map(revDb, function(val, key) {
+        return [ val.dateLearned, 1 + val.temporalIndex ];
+    });
+    chartArr.unshift(['date', 'card index']);
+
+    // Invoke the c3js method
+    var chart = c3.generate({
+        bindto : '#chart',
+        data : {x : 'date', rows : chartArr},
+        axis : {
+                 y : {label : {text : "Card index"}},
+                 x : {
+                     type : 'timeseries',
+                     label : {text : "Date"},
+                     tick : {
+                         rotate : 10,
+                         height : 1300,
+                         format : '%Y-%m-%d %I:%M'
+                     }
+                 }
+               },
+        tooltip : {
+                    format : {
+                        value : function(value, ratio, id) {
+                            // console.log(value +'/' + ratio+'/' + id);
+                            var fact = temporalIndexToKeyFactArray[value-1];
+                            var reps = revDb[fact].reps;
+                            var lapses = revDb[fact].lapses;
+                            return temporalIndexToKeyFactArray[value-1] + " (#" +
+                                   (value -1+ 1) + ", " + lapses + '/' + reps +
+                                   "reps missed)";
+                        }
+                    }
+                  },
+        legend : {show : false},
+        zoom : {
+                 enabled : true,
+                 extent : [
+                     1,
+                     2
+                 ]
+               },  // default is [1,10] doesn't provide enough zoooooom
+        point : {focus : {expand : {enabled : false}}}
+    });
+
+    // Make the radius and opacity of each data circle depend on the pass rate
+    var grader =
+        function(dbentry) { return 1 - dbentry.lapses / dbentry.reps; };
+    var worstRate = grader(_.min(revDb, grader));
+    var scaleRadius = d3.scale.linear().domain([ worstRate - .005, 1 ]).range([ 2, 45 ]);
+    var scaleOpacity =
+        d3.scale.linear().domain([ worstRate, 1 ]).range([ 1, .05 ]);
+
+    // The following helps smooth out the diversity of radii and opacities by
+    // putting more slope in the linear scale where there's more mass in the
+    // histogram, so when there's lots of things with about the same value,
+    // they'll have more different radii/opacities than they would otherwise. It
+    // looks good, but it depends on the user's data, and requires some
+    // automatic histogram analysis: TODO.
+    if (false) {
+        var lin = d3.scale.linear().domain([ 0, 1 ]).range(scaleRadius.range());
+        scaleRadius =
+            d3.scale.linear()
+                .domain([ worstRate, .85, .93, .96, 1 ])
+                .range([ lin(0), lin(.2), lin(.8), lin(.99), lin(1) ]);
+        lin = d3.scale.linear().domain([ 0, 1 ]).range(scaleOpacity.range());
+        scaleOpacity =
+            d3.scale.linear()
+                .domain([ worstRate, .85, .93, .96, 1 ])
+                .range([ lin(0), lin(.2), lin(.8), lin(.99), lin(1) ]);
+    }
+
+    temporalIndexToKeyFactArray.forEach(function(value, idx) {
+        var dbentry = revDb[temporalIndexToKeyFactArray[idx]];
+        var rate = grader(dbentry);
+        // if (idx>=557) {debugger;}
+        d3.select('.c3-circle-' + idx).attr({
+            'r' : scaleRadius(rate),
+            //'fill-opacity' : 0,
+            //'fill' : 'none',
+            'stroke-opacity' : scaleOpacity(rate)
+        });
+    });
+    $('.c3-circle').css({stroke : 'rgb(31,119,180)', fill: "none", "fill-opacity": 0});
+
+    //------------------------------------------------------------------------
+    // Histogram of pass rates
+    //------------------------------------------------------------------------
+    var numBins = 20;
+    var histData = d3.layout.histogram().bins(scaleRadius.ticks(numBins))(
+        _.map(revDb, grader));
+    chartHistData = _.map(histData, function(bar) { return [ bar.x, bar.y ]; })
+                    chartHistData.unshift([ 'x', 'frequency' ]);
+    var hist = c3.generate({
+        bindto : '#histogram',
+        data : {x : 'x', rows : chartHistData, type : "bar"},
+        bar : {width : {ratio : .95}},
+        axis : {
+            y : {label : {text : "Number of cards"}},
+            x : {
+                label : {text : "Pass rate"},
+
+            }
+        }
+    });
+
+}
+
 // Lifted from
 // https://github.com/matteofigus/nice-json2csv/blob/master/lib/nice-json2csv.js
 // (MIT License)
@@ -544,3 +708,8 @@ function specialDisplayHandlers() {
     }
     return 0;
 }
+
+var summer = function(arr) {
+    return _.reduce(arr, function(memo, num) { return memo + num; }, 0);
+};
+var mean = function(arr) { return summer(arr) / arr.length; };
