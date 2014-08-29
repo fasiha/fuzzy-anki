@@ -288,6 +288,8 @@ function revlogVisualizeProgress() {
 
     d3.select("#reviews").append("div").attr("id", "chart");
     d3.select("#reviews").append("div").attr("id", "histogram");
+    d3.select("#reviews").append("div").attr("id", "scatter-rep-lapse");
+    d3.select("#reviews").append("div").attr("id", "scatter-norm-rep-lapse");
 
     //------------------------------------------------------------------------
     // Pass rate per unique card
@@ -350,7 +352,7 @@ function revlogVisualizeProgress() {
                      2
                  ]
                },  // default is [1,10] doesn't provide enough zoooooom
-        point : {focus : {expand : {enabled : false}}}
+        point : {focus : {expand : {enabled : false}}} // don't expand a point on focus
     });
 
     // Make the radius and opacity of each data circle depend on the pass rate
@@ -399,19 +401,88 @@ function revlogVisualizeProgress() {
     var numBins = 20;
     var histData = d3.layout.histogram().bins(scaleRadius.ticks(numBins))(
         _.map(revDb, grader));
-    chartHistData = _.map(histData, function(bar) { return [ bar.x, bar.y ]; })
-                    chartHistData.unshift([ 'x', 'frequency' ]);
+    var chartHistData = _.map(histData, function(bar) { return [ bar.x, bar.y ]; });
+    chartHistData.unshift([ 'x', 'frequency' ]);
     var hist = c3.generate({
         bindto : '#histogram',
         data : {x : 'x', rows : chartHistData, type : "bar"},
         bar : {width : {ratio : .95}},
         axis : {
-            y : {label : {text : "Number of cards"}},
-            x : {
-                label : {text : "Pass rate"},
+                 y : {label : {text : "Number of cards"}},
+                 x : {
+                     label : {text : "Pass rate"},
 
-            }
-        }
+                 }
+               },
+        legend : {show : false}
+    });
+
+    //-----------------
+    // Time to failure plots
+    //--------------------
+    var unitRandom = function() { return (Math.random() - 0.5) * .5; };
+    var lapsesReps = temporalIndexToKeyFactArray.map(
+        function(key, idx){return [ revDb[key].lapses + unitRandom(), revDb[key].reps + unitRandom()]});
+    lapsesReps.unshift(['lapses', 'reps']);
+    var lapsesRepsChart = c3.generate({
+        bindto : '#scatter-rep-lapse',
+        data : {x : 'reps', rows : lapsesReps, type : "scatter"},
+        axis : {
+                 x : {label : {text : "# reps, integer with jitter"}, tick : {fit : false}},
+                 y : {label : {text : "# lapses, integer with jitter"}}
+               },
+        legend : {show : false}
+    });
+
+
+    // Normalized
+    var current = new Date().getTime();
+    var dayDiff = function(initial) {
+        return (current - initial.getTime()) / (1000 * 3600 * 24);
+    };
+    var lapsesTime = temporalIndexToKeyFactArray.map(function(key, idx){return [
+        revDb[key].lapses + unitRandom(),
+        dayDiff(revDb[key].dateLearned) + unitRandom(),
+        idx
+    ]});
+    lapsesTime.unshift([ 'lapses', 'daysKnown', 'index0' ]);
+
+    var lapsesDaysChart = c3.generate({
+        bindto : '#scatter-norm-rep-lapse',
+        data : {
+                 x : 'daysKnown',
+                 rows : lapsesTime,
+                 type : "scatter",
+                 axes : {"index0" : "none"}
+               },
+        axis : {
+                 x : {
+                       label : {text : "days known, with jitter"},
+                       tick : {fit : false}
+                     },
+                 y : {label : {text : "# lapses, with jitter"}}
+               },
+        legend : {show : false},
+        tooltip : {
+                    format : {
+                        title : function(d) { return "Known for " + d3.round(d) + " days"; },
+                        name :
+                            function(id) {
+                                if (id === "lapses") {
+                                    return "Lapses";
+                                }
+                                return "Card key";
+                            },
+                        value :
+                            function(value, ratio, id) {
+                                if (id === "lapses") {
+                                    return d3.round(value);
+                                }
+                                return temporalIndexToKeyFactArray[value];
+                            }
+                    }
+                  },
+        zoom : {enabled : true, extent : [ 1, 2 ]}
     });
 
 }
