@@ -301,7 +301,22 @@ function revlogVisualizeProgress() {
     // Invoke the c3js method
     var chart = c3.generate({
         bindto : '#chart',
-        data : {x : 'date', rows : chartArr},
+        data : {
+                 x : 'date',
+                 rows : chartArr,
+                 onmouseover :
+                     function(d, i) {
+                         $('.c3-circle-' + d.index).css({
+                             "stroke-width": 3
+                         });
+                     },
+                 onmouseout :
+                     function(d, i) {
+                         $('.c3-circle-' + d.index).css({
+                             "stroke-width": 1
+                         });
+                     }
+               },
         axis : {
                  y : {label : {text : "Card index"}},
                  x : {
@@ -317,7 +332,7 @@ function revlogVisualizeProgress() {
         tooltip : {
                     format : {
                         value : function(value, ratio, id) {
-                            // console.log(value +'/' + ratio+'/' + id);
+                            // value: 1-index!
                             var fact = temporalIndexToKeyFactArray[value-1];
                             var reps = revDb[fact].reps;
                             var lapses = revDb[fact].lapses;
