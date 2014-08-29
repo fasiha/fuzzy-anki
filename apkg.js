@@ -254,6 +254,10 @@ function revlogVisualizeProgress() {
 
     var reductionFunction = function(dbSoFar, rev, idx) {
         var key = rev.noteFacts[keyFactId];
+        if (!key) {
+            return dbSoFar;
+        }
+
         if (key in dbSoFar) {
             dbSoFar[key].allRevlogs.push(rev);
         } else {
