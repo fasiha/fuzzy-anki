@@ -132,9 +132,7 @@ function ankiSQLToRevlogTable(array, options) {
     // The reviews
     var query =
         'SELECT revlog.id, revlog.ease, revlog.time, notes.flds, notes.sfld, cards.reps, cards.lapses, cards.did, notes.mid \
-FROM revlog \
-JOIN notes ON revlog.cid=notes.id \
-JOIN cards ON revlog.cid=cards.nid \
+FROM revlog JOIN cards ON revlog.cid=cards.id JOIN notes ON cards.nid=notes.id \
 ORDER BY revlog.id' +
         (options.recent ? " DESC " : "") +
         (options.limit && options.limit > 0 ? " LIMIT " + options.limit : "");
