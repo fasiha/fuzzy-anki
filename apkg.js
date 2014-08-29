@@ -132,7 +132,9 @@ function ankiSQLToRevlogTable(array, options) {
     // The reviews
     var query =
         'SELECT revlog.id, revlog.ease, revlog.time, notes.flds, notes.sfld, cards.reps, cards.lapses, cards.did, notes.mid \
-FROM revlog JOIN cards ON revlog.cid=cards.id JOIN notes ON cards.nid=notes.id \
+FROM revlog \
+LEFT OUTER JOIN cards ON revlog.cid=cards.id \
+LEFT OUTER JOIN notes ON cards.nid=notes.id \
 ORDER BY revlog.id' +
         (options.recent ? " DESC " : "") +
         (options.limit && options.limit > 0 ? " LIMIT " + options.limit : "");
@@ -148,16 +150,21 @@ modelId".split(',');
 
     revlogTable.forEach(function(rev) {
         // Add deck name
-        rev.deckName = decks[rev.deckId].name;
+        rev.deckName = rev.deckId ? decks[rev.deckId].name : "unknown deck";
         // delete rev.deckId;
 
         // Convert facts string to a fact object
         var fieldNames =
-            models[rev.modelId].flds.map(function(f) { return f.name; });
+            rev.modelId
+                ? models[rev.modelId].flds.map(function(f) { return f.name; })
+                : null;
         rev.noteFacts =
-            arrayNamesToObj(fieldNames, rev.noteFacts.split(ankiSeparator));
+            rev.noteFacts ? arrayNamesToObj(fieldNames,
+                                            rev.noteFacts.split(ankiSeparator))
+                          : "unknown note facts";
         // Add model name
-        rev.modelName = models[rev.modelId].name;
+        rev.modelName =
+            rev.modelId ? models[rev.modelId].name : "unknown model";
         // delete rev.modelId;
 
         // Add review date
@@ -165,7 +172,9 @@ modelId".split(',');
         rev.dateString = rev.date.toString();
 
         // Add a JSON representation of facts
-        rev.noteFactsJSON = JSON.stringify(rev.noteFacts);
+        rev.noteFactsJSON = typeof rev.noteFacts == "object"
+                                ? JSON.stringify(rev.noteFacts)
+                                : "unknown note facts";
 
         // Switch timeToAnswer from milliseconds to seconds
         rev.timeToAnswer /= 1000;
