@@ -172,16 +172,14 @@ function displayRevlogOutputOptions() {
                         .attr("id", "viz-models-list");
 
     // Data: elements of decksReviewed (which are {deck IDs -> object})
-    var vizDecksList =
-        vizDecks.selectAll("li")
-            .data(Object.keys(
-                decksReviewed))  //.data(Object.keys(_.omit(decksReviewed,
-            // null)))
-            .enter()
-            .append("li")
-            .append('label')
-            .attr('for', function(d) { return 'viz-deck-' + d; })
-            .html(function(d, i) {
+    // TODO: enable visualization of unknown decks: .data(Object.keys(decksReviewed))
+    var vizDecksList = vizDecks.selectAll("li")
+                           .data(Object.keys(_.omit(decksReviewed, null)))
+                           .enter()
+                           .append("li")
+                           .append('label')
+                           .attr('for', function(d) { return 'viz-deck-' + d; })
+                           .html(function(d, i) {
         var thisModels =
             _.filter(Object.keys(decksReviewed[d]).map(function(mid) {
             return d !== "null" ? allModels[mid].name : null;
