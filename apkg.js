@@ -162,13 +162,12 @@ function displayRevlogOutputOptions() {
     });
 
     var vizDecks =
-        viz.append("ul").append('li').text("Decks").append('ul').attr(
+        viz.append("ul").append('li').text("Select decks to analyze").append('ul').attr(
             "id", "viz-decks-list");
     var vizModels = viz.append("ul")
                         .append('li')
                         .text(
-                             "The following models are present: select fields \
-to display in visualization:")
+                             "Select fields for each model to display in plots")
                         .append('ul')
                         .attr("id", "viz-models-list");
 
@@ -441,6 +440,7 @@ function reduceRevlogTable(deckIDsWanted) {
                 allRevlogs : [rev],
                 reps : rev.reps,
                 lapses : rev.lapses,
+                cardId: rev.cardId,
                 modelId : rev.modelId,
                 dateLearned : rev.date,
                 noteFacts : rev.noteFacts,
@@ -466,9 +466,12 @@ function reduceRevlogTable(deckIDsWanted) {
 }
 
 function cardAndConfigToString(cardObj, config) {
-    return config[cardObj.modelId].map(function(factName) {
-        return cardObj.noteFacts[factName];
-    }).join(', ');
+    return config[cardObj.modelId].length > 0
+               ? (config[cardObj.modelId]
+                      .map(function(
+                          factName) { return cardObj.noteFacts[factName]; })
+                      .join(', '))
+               : ("card ID: " + cardObj.cardId);
 }
 
 var revDb, temporalIndexToCardArray;
@@ -490,10 +493,33 @@ function revlogVisualizeProgress(configModelsFacts, deckIDsWanted) {
     // details about each card. Sibling cards are currently treated as different
     // cards: TODO: allow user to select treating them as the same card.
 
-    d3.select("#reviews").append("div").attr("id", "chart");
-    d3.select("#reviews").append("div").attr("id", "histogram");
-    d3.select("#reviews").append("div").attr("id", "scatter-rep-lapse");
-    d3.select("#reviews").append("div").attr("id", "scatter-norm-rep-lapse");
+    function appendC3Div(heading, text, id) {
+        var newdiv = d3.select("#reviews").append("div");
+        newdiv.append("h4").text(heading);
+        newdiv.append('p').text(text);
+        newdiv.append('div').attr("id", id);
+    }
+
+    appendC3Div("Calendar view of acquisition",
+                "Time series showing when cards were learned. \
+Large circles indicate perfect performance, smaller circles indicate poorer \
+performance. Drag to pan, and mouse-weel to zoom.",
+                "chart");
+
+    appendC3Div("Performance since acquisition", "Number of lapses since \
+card learned. Pannable and zoomable. Note: opposite x-axis direction as \
+previous plot.", "scatter-norm-rep-lapse");
+
+    appendC3Div("Performance histogram",
+                "Histogram of per-card performance, where ease of 1 is \
+failure and all other eases are success.",
+                "histogram");
+
+
+    appendC3Div("Scatter plot of lapses versus reps",
+                "Lapses and reps are correlated with poor \
+performance, so this scatter plot cannot be easily used for analysis.",
+                "scatter-rep-lapse");
 
     //------------------------------------------------------------------------
     // Pass rate per unique card
@@ -545,8 +571,8 @@ function revlogVisualizeProgress(configModelsFacts, deckIDsWanted) {
                             var reps = revDb[key].reps;
                             var lapses = revDb[key].lapses;
                             return str +
-                                   " (#" + (value - 1 + 1) + ", " + lapses +
-                                   '/' + reps + "reps missed)";
+                                   " (#" + (value - 1 + 1) + ", " + (reps-lapses) +
+                                   '/' + reps + " reps passed)";
                         }
                     }
                   },
