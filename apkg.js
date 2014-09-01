@@ -141,23 +141,17 @@ function displayRevlogOutputOptions() {
         generateReviewsCSV();
     }
 
-    //    return;
-    /*
-        sqlite = sqliteGlobal;
-        var allModelsDecks = sqlite.exec('SELECT models,decks FROM col')[0].values[0];
-        allModels = $.parseJSON(allModelsDecks[0]);
-        allDecks = $.parseJSON(allModelsDecks[1]);
-        var ul = d3.select('body').append('ul')
-        ul.html('');
-    */
-    // return;
     var viz = ul.append('li').text('Visualization').attr("id", "viz-options");
     var vizDecks =
         viz.append("ul").append('li').text("Decks").append('ul').attr(
             "id", "viz-decks-list");
-    var vizModels =
-        viz.append("ul").append('li').text("With models").append('ul').attr(
-            "id", "viz-models-list");
+    var vizModels = viz.append("ul")
+                        .append('li')
+                        .text(
+                             "The following models are present: select fields \
+to display in visualization:")
+                        .append('ul')
+                        .attr("id", "viz-models-list");
 
     // Data: elements of decksReviewed (which are {deck IDs -> object})
     var vizDecksList = vizDecks.selectAll("li")
@@ -175,24 +169,55 @@ function displayRevlogOutputOptions() {
                ")";
     });
 
+    $('#viz-decks-list input:checkbox')
+        .click(function() { updateModelChoices(); });
+    updateModelChoices();
+}
+
+function updateModelChoices() {
+    var selectedDecks = _.pluck($('#viz-decks-list input:checked'), 'id');
+    // In case the above is too fancy across browsers, this is equivalent:
+    // `$.map($('#viz-decks-list input:checked'), function(x){return x.id;})`
+
+    var selectedDeckIDs =
+        selectedDecks.map(function(id) { return /[0-9]+/.exec(id)[0]; });
+
+    var modelIDs = _.union(_.flatten(_.map(selectedDeckIDs.map(function(did) {
+        return decksReviewed[did];
+    }), function(val) { return Object.keys(val); })));
+
+    var vizModels = d3.select("#viz-models-list");
+    var modelsData = vizModels.selectAll("li.viz-model")
+                         .data(modelIDs, function(mid) { return mid; });
+    // For an explanation of the CSS class 'viz-model' see
+    // http://stackoverflow.com/a/25599142/500207
+
+    modelsData.exit().remove();
+
     var vizModelsList =
-        vizModels.selectAll("li")
-            .data(Object.keys(modelsReviewed))
-            .enter()
+        modelsData.enter()
             .append("li")
-            .text(function(mid) { return allModels[mid].name; });
+            .attr("id", function(mid) { return "viz-model-" + mid; })
+            .text(function(mid) { return allModels[mid].name; })
+            .classed("viz-model",
+                     true);  // see http://stackoverflow.com/a/25599142/500207
 
     var vizFields =
-        vizModelsList.selectAll("li")
-            .data(function(d) { return allModels[d].flds; })
+        vizModelsList.selectAll("ul")
+            .data(
+                 function(d) {
+                     return _.pluck(allModels[d].flds, 'name').map(function(
+                         name, idx) { return {name : name, modelId : d}; });
+                 })
             .enter()
-            .append("ul")
-            .append("li")
+            .append("ul")  //.append("li")
             .append("label")
-            .attr("for", function(d, i) { return 'viz-model-' + d + '-' + i; })
+            .attr("for", function(d, i) {
+                return 'viz-model-' + d.modelId + '-field-' + i;
+            })
             .html(function(d, i) {
-        return '<input type="checkbox" id="viz-model-' + d + '-' + i + '"> ' +
-               d.name;
+        return '<input type="checkbox" id="viz-model-' + d.modelId + '-field-' +
+               i + '"> ' + d.name;
     });
 }
 
