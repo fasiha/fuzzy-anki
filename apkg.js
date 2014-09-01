@@ -114,83 +114,14 @@ function arrayNamesToObj(fields, values) {
     return obj;
 }
 
-var revlogTable;
-function ankiSQLToRevlogTable(array, options) {
-    if (typeof options === 'undefined') {
-        options = {limit : 100, recent : true};
-    }
-
-    var sqliteBinary = new Uint8Array(array);
-    var sqlite = new SQL.Database(sqliteBinary);
-
-    // The deck name is in decks, and the field names are in models
-    // which are JSON, and have to be handled outside SQL.
-    var decksTable = sqlite.exec('SELECT models,decks FROM col')[0].values[0];
-    var models = $.parseJSON(decksTable[0]);
-    var decks = $.parseJSON(decksTable[1]);
-
-    // The reviews
-    var query =
-        'SELECT revlog.id, revlog.ease, revlog.time, notes.flds, notes.sfld, cards.reps, cards.lapses, cards.did, notes.mid \
-FROM revlog \
-LEFT OUTER JOIN cards ON revlog.cid=cards.id \
-LEFT OUTER JOIN notes ON cards.nid=notes.id \
-ORDER BY revlog.id' +
-        (options.recent ? " DESC " : "") +
-        (options.limit && options.limit > 0 ? " LIMIT " + options.limit : "");
-    var queryResultNames =
-        "revId,ease,timeToAnswer,noteFacts,noteSortKeyFact,reps,lapses,deckId,\
-modelId".split(',');
-
-    // Run the query and convert the resulting array of arrays into an array of
-    // objects
-    revlogTable = sqlite.exec(query)[0].values;
-    revlogTable = revlogTable.map(
-        function(arr) { return arrayNamesToObj(queryResultNames, arr); });
-
-    revlogTable.forEach(function(rev) {
-        // Add deck name
-        rev.deckName = rev.deckId ? decks[rev.deckId].name : "unknown deck";
-        // delete rev.deckId;
-
-        // Convert facts string to a fact object
-        var fieldNames =
-            rev.modelId
-                ? models[rev.modelId].flds.map(function(f) { return f.name; })
-                : null;
-        rev.noteFacts =
-            rev.noteFacts ? arrayNamesToObj(fieldNames,
-                                            rev.noteFacts.split(ankiSeparator))
-                          : "unknown note facts";
-        // Add model name
-        rev.modelName =
-            rev.modelId ? models[rev.modelId].name : "unknown model";
-        // delete rev.modelId;
-
-        // Add review date
-        rev.date = new Date(rev.revId);
-        rev.dateString = rev.date.toString();
-
-        // Add a JSON representation of facts
-        rev.noteFactsJSON = typeof rev.noteFacts == "object"
-                                ? JSON.stringify(rev.noteFacts)
-                                : "unknown note facts";
-
-        // Switch timeToAnswer from milliseconds to seconds
-        rev.timeToAnswer /= 1000;
-    });
-
-    // Create div for results
-    displayRevlogOutputOptions();
-}
-
 function displayRevlogOutputOptions() {
     var ul = d3.select("body")
                  .append("div")
                  .attr("id", "reviews")
                  .append("div")
                  .attr("id", "reviews-options")
-                 .append("ul");
+                 .append("ul")
+                 .attr("id", "reviews-options-list");
     var tooMuch = 101;
     if (revlogTable.length > tooMuch) {
         ul.append('li')
@@ -209,6 +140,60 @@ function displayRevlogOutputOptions() {
         tabulateReviews();
         generateReviewsCSV();
     }
+
+    //    return;
+    /*
+        sqlite = sqliteGlobal;
+        var allModelsDecks = sqlite.exec('SELECT models,decks FROM col')[0].values[0];
+        allModels = $.parseJSON(allModelsDecks[0]);
+        allDecks = $.parseJSON(allModelsDecks[1]);
+        var ul = d3.select('body').append('ul')
+        ul.html('');
+    */
+    // return;
+    var viz = ul.append('li').text('Visualization').attr("id", "viz-options");
+    var vizDecks =
+        viz.append("ul").append('li').text("Decks").append('ul').attr(
+            "id", "viz-decks-list");
+    var vizModels =
+        viz.append("ul").append('li').text("With models").append('ul').attr(
+            "id", "viz-models-list");
+
+    // Data: elements of decksReviewed (which are {deck IDs -> object})
+    var vizDecksList = vizDecks.selectAll("li")
+                           .data(Object.keys(decksReviewed))
+                           .enter()
+                           .append("li")
+                           .append('label')
+                           .attr('for', function(d) { return 'viz-deck-' + d; })
+                           .html(function(d, i) {
+        var thisModels = Object.keys(decksReviewed[d]).map(
+            function(mid) { return allModels[mid].name; });
+        return '<input type="checkbox" checked id="viz-deck-' + d + '"> ' +
+               allDecks[d].name + " (contains model" +
+               (thisModels.length > 1 ? "s " : " ") + thisModels.join(",") +
+               ")";
+    });
+
+    var vizModelsList =
+        vizModels.selectAll("li")
+            .data(Object.keys(modelsReviewed))
+            .enter()
+            .append("li")
+            .text(function(mid) { return allModels[mid].name; });
+
+    var vizFields =
+        vizModelsList.selectAll("li")
+            .data(function(d) { return allModels[d].flds; })
+            .enter()
+            .append("ul")
+            .append("li")
+            .append("label")
+            .attr("for", function(d, i) { return 'viz-model-' + d + '-' + i; })
+            .html(function(d, i) {
+        return '<input type="checkbox" id="viz-model-' + d + '-' + i + '"> ' +
+               d.name;
+    });
 }
 
 function generateReviewsCSV() {  // Export
@@ -233,10 +218,132 @@ reps,noteFactsJSON".split(','),
              "div#reviews");
 }
 
-function revlogVisualizeProgress() {
-    var revDb = {};
-    var keyFactId = "Kanji";
+// Note, this changes obj's parameters ("call by sharing") so the return value
+// is purely a nicety: the object WILL be changed in the caller's scope.
+function updateNestedObj(obj, outerKey, innerKey, innerVal) {
+    if (!(outerKey in obj)) {
+        obj[outerKey] = {};  // don't do {innerKey: innerKey} '_'
+        obj[outerKey][innerKey] = innerVal;
+    } else {
+        if (!(innerKey in obj[outerKey])) {
+            obj[outerKey][innerKey] = innerVal;
+        }
+    }
+    return obj;
+}
 
+var sqliteGlobal;
+var revlogTable;
+var decksReviewed = {}, modelsReviewed = {}, allDecks, allModels;
+function ankiSQLToRevlogTable(array, options) {
+    if (typeof options === 'undefined') {
+        options = {limit : 100, recent : true};
+    }
+
+    var sqliteBinary = new Uint8Array(array);
+    var sqlite = new SQL.Database(sqliteBinary);
+    sqliteGlobal = sqlite;
+
+    // The deck name is in decks, and the field names are in models
+    // which are JSON, and have to be handled outside SQL.
+    var allModelsDecks = sqlite.exec('SELECT models,decks FROM col')[0].values[0];
+    allModels = $.parseJSON(allModelsDecks[0]);
+    allDecks = $.parseJSON(allModelsDecks[1]);
+
+    // The reviews
+    var query =
+        'SELECT revlog.id, revlog.ease, revlog.time, notes.flds, notes.sfld, cards.id, cards.reps, cards.lapses, cards.did, notes.mid, cards.ord \
+FROM revlog \
+LEFT OUTER JOIN cards ON revlog.cid=cards.id \
+LEFT OUTER JOIN notes ON cards.nid=notes.id \
+ORDER BY revlog.id' +
+        (options.recent ? " DESC " : "") +
+        (options.limit && options.limit > 0 ? " LIMIT " + options.limit : "");
+    var queryResultNames =
+        "revId,ease,timeToAnswer,noteFacts,noteSortKeyFact,cardId,reps,lapses,deckId,\
+modelId,templateNum".split(',');
+
+    // Run the query and convert the resulting array of arrays into an array of
+    // objects
+    revlogTable = sqlite.exec(query)[0].values;
+
+    var unknownDeckString = "unknown deck";
+    var unknownNoteString = "unknown note facts";
+    var unknownModelString = "unknown model";
+    // TODO add "Date of first review" field
+    revlogTable = revlogTable.map(function(rev) {
+        // First, convert this review from an array to an object
+        rev = arrayNamesToObj(queryResultNames, rev);
+
+        // Add deck name
+        rev.deckName = rev.deckId ? allDecks[rev.deckId].name : unknownDeckString;
+
+        // Convert facts string to a fact object
+        var fieldNames =
+            rev.modelId
+                ? allModels[rev.modelId].flds.map(function(f) { return f.name; })
+                : null;
+        rev.noteFacts =
+            rev.noteFacts ? arrayNamesToObj(fieldNames,
+                                            rev.noteFacts.split(ankiSeparator))
+                          : unknownNoteString;
+        // Add model name
+        rev.modelName =
+            rev.modelId ? allModels[rev.modelId].name : unknownModelString;
+        // delete rev.modelId;
+
+        // Decks need to know what models are in them. decksReviewed is an
+        // object of objects: what matters are the keys, at both levels, not the
+        // values. TODO can this be done faster in SQL?
+        updateNestedObj(decksReviewed, rev.deckId, rev.modelId, rev.modelName);
+        // But let's also keep track of models in the same way, since we're lazy
+        // FIXME
+        updateNestedObj(modelsReviewed, rev.modelId, rev.deckId, rev.deckName);
+
+        // Add review date
+        rev.date = new Date(rev.revId);
+        rev.dateString = rev.date.toString();
+
+        // Add a JSON representation of facts
+        rev.noteFactsJSON = typeof rev.noteFacts === "object"
+                                ? JSON.stringify(rev.noteFacts)
+                                : unknownNoteString;
+
+        // Switch timeToAnswer from milliseconds to seconds
+        rev.timeToAnswer /= 1000;
+
+        return rev;
+    });
+
+    /*
+    // decks and models that are only associated with reviews. Will this be
+    // faster in sql.js or inside plain Javascript? TODO find out.
+    var modelIDsReviewed = sqlite.exec(
+                                      "SELECT DISTINCT notes.mid \
+FROM revlog \
+LEFT OUTER JOIN cards ON revlog.cid=cards.id \
+LEFT OUTER JOIN notes ON cards.nid=notes.id")[0].values;
+    modelsReviewed = modelIDsReviewed.map(function(mid) {
+        return mid[0] ? allModels[mid[0]].name : unknownModelString;
+    });
+    modelIdToName =
+        arrayNamesToObj(modelIDsReviewed.map(_.first), modelsReviewed);
+
+    var deckIDsReviewed = sqlite.exec(
+                                     "SELECT DISTINCT cards.did \
+FROM revlog \
+LEFT OUTER JOIN cards ON revlog.cid=cards.id")[0].values;
+    decksReviewed = deckIDsReviewed.map(function(did) {
+        return did[0] ? allDecks[did[0]].name : unknownDeckString;
+    });
+    deckIdToName = arrayNamesToObj(deckIDsReviewed.map(_.first), decksReviewed);
+    */
+
+    // Create div for results
+    displayRevlogOutputOptions();
+}
+
+function reduceRevlogTable(deckIDsWanted, modelIDsWanted, logicalOpDeckModel) {
     // See if revlogTable is sorted ascending or descending by examining the
     // first two elements.
     // NB. This will fail if the SQL query isn't sorted by time!
@@ -245,32 +352,37 @@ function revlogVisualizeProgress() {
     // We wanted to know whether the oldest came first or last because a key
     // element of this visualization is the date each note was learned.
 
-    // Build the keyFactId-indexed array using reduce since it can reduce (left)
+    // Build the cardId-indexed array using reduce since it can reduce (left)
     // or reduceRight. Just accumulate the individual reviews. We don't need to
     // keep track of dates, or lapses, or total reps since the database gave us
     // that.
     var uniqueKeysSeenSoFar = 0;
-    var temporalIndexToKeyFactArray = [];
+    var temporalIndexToCardArray = [];
+    var revDb;
 
     var reductionFunction = function(dbSoFar, rev, idx) {
-        var key = rev.noteFacts[keyFactId];
-        if (!key) {
+        var key = rev.cardId;
+        if (logicalOpDeckModel(
+                deckIDsWanted && deckIDsWanted.indexOf(rev.deckId) < 0,
+                modelIDsWanted && modelIDsWanted.indexOf(rev.modelId) < 0)) {
             return dbSoFar;
         }
 
         if (key in dbSoFar) {
+            // Already seen this card ID
             dbSoFar[key].allRevlogs.push(rev);
         } else {
+            // Fist time seeing this card ID
             dbSoFar[key] = {
                 allRevlogs : [rev],
                 reps : rev.reps,
                 lapses : rev.lapses,
                 dateLearned : rev.date,
                 noteFacts : rev.noteFacts,
-                temporalIndex : uniqueKeysSeenSoFar++
+                temporalIndex : uniqueKeysSeenSoFar
             };
-
-            temporalIndexToKeyFactArray[uniqueKeysSeenSoFar - 1] = key;
+            temporalIndexToCardArray[uniqueKeysSeenSoFar] = key;
+            uniqueKeysSeenSoFar++;
         }
         return dbSoFar;
     };
@@ -282,9 +394,32 @@ function revlogVisualizeProgress() {
         revDb = revlogTable.reduceRight(reductionFunction, {});
     }
 
+    return {
+        revDb : revDb,
+        temporalIndexToCardArray : temporalIndexToCardArray
+    };
+}
+
+var revDb, temporalIndexToCardArray;
+function revlogVisualizeProgress() {
+    // This function needs to take, as logical inputs, the decks and models to
+    // limit the visualization to, plus a boolean operation AND or OR to combine
+    // the two, and finally a way to display the pertinent facts about a card so
+    // that cards are better-distinguished than card IDs (a long nunmber).
+    var deckIDsWanted = [];
+    var modelIDsWanted = [];
+    var logicalOpDeckModel = function(x, y) { return x && y; };
+    var displayFacts = "Kanji".split(',');
+
+    revDb =
+        reduceRevlogTable(deckIDsWanted, modelIDsWanted, logicalOpDeckModel);
+    temporalIndexToCardArray = revDb.temporalIndexToCardArray;
+    revDb = revDb.revDb;
+
     // So now we've generated an object indexed by whatever keyFactId was chosen
     // (and potentially restricted to a deck/model) that tells us performance
-    // details about each card.
+    // details about each card. Sibling cards are currently treated as different
+    // cards: TODO: allow user to select treating them as the same card.
 
     d3.select("#reviews").append("div").attr("id", "chart");
     d3.select("#reviews").append("div").attr("id", "histogram");
@@ -335,12 +470,12 @@ function revlogVisualizeProgress() {
                     format : {
                         value : function(value, ratio, id) {
                             // value: 1-index!
-                            var fact = temporalIndexToKeyFactArray[value-1];
-                            var reps = revDb[fact].reps;
-                            var lapses = revDb[fact].lapses;
-                            return temporalIndexToKeyFactArray[value-1] + " (#" +
-                                   (value -1+ 1) + ", " + lapses + '/' + reps +
-                                   "reps missed)";
+                            var key = temporalIndexToCardArray[value-1];
+                            var reps = revDb[key].reps;
+                            var lapses = revDb[key].lapses;
+                            return temporalIndexToCardArray[value - 1] +
+                                   " (#" + (value - 1 + 1) + ", " + lapses +
+                                   '/' + reps + "reps missed)";
                         }
                     }
                   },
@@ -382,8 +517,8 @@ function revlogVisualizeProgress() {
                 .range([ lin(0), lin(.2), lin(.8), lin(.99), lin(1) ]);
     }
 
-    temporalIndexToKeyFactArray.forEach(function(value, idx) {
-        var dbentry = revDb[temporalIndexToKeyFactArray[idx]];
+    temporalIndexToCardArray.forEach(function(value, idx) {
+        var dbentry = revDb[temporalIndexToCardArray[idx]];
         var rate = grader(dbentry);
         // if (idx>=557) {debugger;}
         d3.select('.c3-circle-' + idx).attr({
@@ -421,7 +556,7 @@ function revlogVisualizeProgress() {
     // Time to failure plots
     //--------------------
     var unitRandom = function() { return (Math.random() - 0.5) * .5; };
-    var lapsesReps = temporalIndexToKeyFactArray.map(
+    var lapsesReps = temporalIndexToCardArray.map(
         function(key, idx){return [ revDb[key].lapses + unitRandom(), revDb[key].reps + unitRandom()]});
     lapsesReps.unshift(['lapses', 'reps']);
     var lapsesRepsChart = c3.generate({
@@ -442,7 +577,7 @@ function revlogVisualizeProgress() {
         return (current - initial.getTime()) / (1000 * 3600 * 24);
     };
     jitteredTimeToCard = {};
-    var lapsesTime = temporalIndexToKeyFactArray.map(function(key, idx) {
+    var lapsesTime = temporalIndexToCardArray.map(function(key, idx) {
         var jitteredTime = dayDiff(revDb[key].dateLearned) + unitRandom();
         jitteredTimeToCard[jitteredTime] = key;
         return [ revDb[key].lapses + unitRandom(), jitteredTime ];
@@ -507,7 +642,7 @@ function revlogVisualizeProgress() {
                           if (id === "lapses") {
                               return d3.round(value);
                           }
-                          return temporalIndexToKeyFactArray[value];
+                          return temporalIndexToCardArray[value];
                       }
               }
             },
