@@ -141,7 +141,26 @@ function displayRevlogOutputOptions() {
         generateReviewsCSV();
     }
 
-    var viz = ul.append('li').text('Visualization').attr("id", "viz-options");
+    var viz = ul.append('li')
+                  .attr("id", "viz-options");
+
+    viz.append("button").text('Visualize performance').on("click", function() {
+        var selectedFields = d3.selectAll("#viz-models-list > li.viz-model")
+                                 .selectAll("input:checked");
+        var config = selectedFields.map(function(mod) {
+            mid = /[0-9]+/.exec(mod.parentNode.id)[0];
+            fs = mod.map(function(sub) {
+                var fnum = /field-([0-9]+)/.exec(sub.id)[1];
+                return allModels[mid].flds[fnum].name;
+            });
+            return {modelID : mid, fieldNames : fs};
+        });
+        config = arrayNamesToObj(_.pluck(config, "modelID"),
+                                 _.pluck(config, "fieldNames"));
+
+        revlogVisualizeProgress(config, getSelectedDeckIDs());
+    });
+
     var vizDecks =
         viz.append("ul").append('li').text("Decks").append('ul').attr(
             "id", "viz-decks-list");
@@ -154,33 +173,49 @@ to display in visualization:")
                         .attr("id", "viz-models-list");
 
     // Data: elements of decksReviewed (which are {deck IDs -> object})
-    var vizDecksList = vizDecks.selectAll("li")
-                           .data(Object.keys(decksReviewed))
-                           .enter()
-                           .append("li")
-                           .append('label')
-                           .attr('for', function(d) { return 'viz-deck-' + d; })
-                           .html(function(d, i) {
-        var thisModels = Object.keys(decksReviewed[d]).map(
-            function(mid) { return allModels[mid].name; });
+    var vizDecksList =
+        vizDecks.selectAll("li")
+            .data(Object.keys(
+                decksReviewed))  //.data(Object.keys(_.omit(decksReviewed,
+            // null)))
+            .enter()
+            .append("li")
+            .append('label')
+            .attr('for', function(d) { return 'viz-deck-' + d; })
+            .html(function(d, i) {
+        var thisModels =
+            _.filter(Object.keys(decksReviewed[d]).map(function(mid) {
+            return d !== "null" ? allModels[mid].name : null;
+        }), null);
         return '<input type="checkbox" checked id="viz-deck-' + d + '"> ' +
-               allDecks[d].name + " (contains model" +
-               (thisModels.length > 1 ? "s " : " ") + thisModels.join(",") +
-               ")";
+               (d !== "null" ? allDecks[d].name : "Unknown deck") +
+               (thisModels.length > 0
+                    ? " (contains model" +
+                          (thisModels.length > 1 ? "s " : " ") +
+                          thisModels.join(", ") + ")"
+                    : "");
     });
+
+    $('#viz-deck-null').attr("checked", false);
 
     $('#viz-decks-list input:checkbox')
         .click(function() { updateModelChoices(); });
     updateModelChoices();
 }
 
-function updateModelChoices() {
+function getSelectedDeckIDs() {
     var selectedDecks = _.pluck($('#viz-decks-list input:checked'), 'id');
     // In case the above is too fancy across browsers, this is equivalent:
     // `$.map($('#viz-decks-list input:checked'), function(x){return x.id;})`
 
-    var selectedDeckIDs =
-        selectedDecks.map(function(id) { return /[0-9]+/.exec(id)[0]; });
+    var selectedDeckIDs = selectedDecks.map(function(id) {
+        return id !== "viz-deck-null" ? /[0-9]+/.exec(id)[0] : null;
+    });
+    return selectedDeckIDs;
+}
+
+function updateModelChoices() {
+    var selectedDeckIDs = getSelectedDeckIDs();
 
     var modelIDs = _.union(_.flatten(_.map(selectedDeckIDs.map(function(did) {
         return decksReviewed[did];
@@ -198,7 +233,7 @@ function updateModelChoices() {
         modelsData.enter()
             .append("li")
             .attr("id", function(mid) { return "viz-model-" + mid; })
-            .text(function(mid) { return allModels[mid].name; })
+            .text(function(mid) { return mid !== "null" ? allModels[mid].name : "Unknown model";  })
             .classed("viz-model",
                      true);  // see http://stackoverflow.com/a/25599142/500207
 
@@ -206,8 +241,12 @@ function updateModelChoices() {
         vizModelsList.selectAll("ul")
             .data(
                  function(d) {
-                     return _.pluck(allModels[d].flds, 'name').map(function(
-                         name, idx) { return {name : name, modelId : d}; });
+                     return d !== "null"
+                                ? (_.pluck(allModels[d].flds, 'name').map(
+                                      function(name, idx) {
+                                          return {name : name, modelId : d};
+                                      }))
+                                : [];
                  })
             .enter()
             .append("ul")  //.append("li")
@@ -368,7 +407,9 @@ LEFT OUTER JOIN cards ON revlog.cid=cards.id")[0].values;
     displayRevlogOutputOptions();
 }
 
-function reduceRevlogTable(deckIDsWanted, modelIDsWanted, logicalOpDeckModel) {
+function reduceRevlogTable(deckIDsWanted) {
+    deckIDsWanted = deckIDsWanted.map(function(i) { return parseInt(i); });
+
     // See if revlogTable is sorted ascending or descending by examining the
     // first two elements.
     // NB. This will fail if the SQL query isn't sorted by time!
@@ -387,9 +428,7 @@ function reduceRevlogTable(deckIDsWanted, modelIDsWanted, logicalOpDeckModel) {
 
     var reductionFunction = function(dbSoFar, rev, idx) {
         var key = rev.cardId;
-        if (logicalOpDeckModel(
-                deckIDsWanted && deckIDsWanted.indexOf(rev.deckId) < 0,
-                modelIDsWanted && modelIDsWanted.indexOf(rev.modelId) < 0)) {
+        if (deckIDsWanted && deckIDsWanted.indexOf(rev.deckId) < 0) {
             return dbSoFar;
         }
 
@@ -402,6 +441,7 @@ function reduceRevlogTable(deckIDsWanted, modelIDsWanted, logicalOpDeckModel) {
                 allRevlogs : [rev],
                 reps : rev.reps,
                 lapses : rev.lapses,
+                modelId : rev.modelId,
                 dateLearned : rev.date,
                 noteFacts : rev.noteFacts,
                 temporalIndex : uniqueKeysSeenSoFar
@@ -425,19 +465,23 @@ function reduceRevlogTable(deckIDsWanted, modelIDsWanted, logicalOpDeckModel) {
     };
 }
 
+function cardAndConfigToString(cardObj, config) {
+    return config[cardObj.modelId].map(function(factName) {
+        return cardObj.noteFacts[factName];
+    }).join(', ');
+}
+
 var revDb, temporalIndexToCardArray;
-function revlogVisualizeProgress() {
+function revlogVisualizeProgress(configModelsFacts, deckIDsWanted) {
     // This function needs to take, as logical inputs, the decks and models to
     // limit the visualization to, plus a boolean operation AND or OR to combine
     // the two, and finally a way to display the pertinent facts about a card so
     // that cards are better-distinguished than card IDs (a long nunmber).
-    var deckIDsWanted = [];
-    var modelIDsWanted = [];
-    var logicalOpDeckModel = function(x, y) { return x && y; };
-    var displayFacts = "Kanji".split(',');
+    if (typeof deckIDsWanted === undefined) {
+        deckIDsWanted = [];
+    }
 
-    revDb =
-        reduceRevlogTable(deckIDsWanted, modelIDsWanted, logicalOpDeckModel);
+    revDb = reduceRevlogTable(deckIDsWanted);
     temporalIndexToCardArray = revDb.temporalIndexToCardArray;
     revDb = revDb.revDb;
 
@@ -496,9 +540,11 @@ function revlogVisualizeProgress() {
                         value : function(value, ratio, id) {
                             // value: 1-index!
                             var key = temporalIndexToCardArray[value-1];
+                            var str = cardAndConfigToString(revDb[key],
+                                                            configModelsFacts);
                             var reps = revDb[key].reps;
                             var lapses = revDb[key].lapses;
-                            return temporalIndexToCardArray[value - 1] +
+                            return str +
                                    " (#" + (value - 1 + 1) + ", " + lapses +
                                    '/' + reps + "reps missed)";
                         }
@@ -635,19 +681,20 @@ function revlogVisualizeProgress() {
               contents :
                   function(d, defaultTitleFormat, defaultValueFormat, color) {
                       var key = jitteredTimeToCard[d[0].x];
+                      var str = cardAndConfigToString(revDb[key],
+                                                            configModelsFacts);
                       this.config.tooltip_format_title = function(d) {
-                          return "Known for " + d3.round(d) + " days (" + key +
+                          return "Known for " + d3.round(d) + " days (" + str +
                                  ")";
                       };
                       this.config.tooltip_format_value =
                           function(value, ratio, id) {
-                              return d3.round(value) + " (" + key + ")";
+                              return d3.round(value) + " (" + str + ")";
                       };
-                      var retval = this.getTooltipContent
-                                       ? this.getTooltipContent(
-                                             d, defaultTitleFormat,
-                                             defaultValueFormat, color)
-                                       : '';
+                      var retval =
+                          this.getTooltipContent
+                              ? this.getTooltipContent(d, [], [], color)
+                              : '';
                       return retval;
                   },
               format : {
