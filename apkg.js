@@ -273,19 +273,23 @@ function updateModelChoices() {
     });
 }
 
-function generateReviewsCSV() {  // Export
-    var csv = convert(
-        revlogTable,
-        "dateString,ease,timeToAnswer,noteSortKeyFact,deckName,modelName,lapses,\
-reps,noteFactsJSON".split(','));
+function arrToCSV(dataArray, fieldsArray, linkText, d3SelectionToAppend) {
+    var csv = convert(dataArray, fieldsArray);
     var blob = new Blob([csv], {type : 'data:text/csv;charset=utf-8'});
     var url = URL.createObjectURL(blob);
-    d3.select("div#reviews-options ul")
-        .append("li").attr("id", "export-completed")
-        .append("a")
+    return d3SelectionToAppend.append("a")
         .attr("href", url)
-        .classed('csv-download', true)
-        .text("Download CSV!");
+        .text(linkText);
+}
+
+function generateReviewsCSV() {
+    var d3Selection = arrToCSV(
+        revlogTable,
+        "dateString,ease,timeToAnswer,noteSortKeyFact,deckName,modelName,lapses,\
+reps,noteFactsJSON".split(','),
+        "Download CSV", d3.select("#export-request").append("li").attr(
+                            "id", "export-completed"));
+    d3Selection.classed('csv-download', true);
 }
 
 function tabulateReviews() {
@@ -911,6 +915,7 @@ $(document).ready(function() {
 function core5000Modify(deckNotes, deckFields) {
     d3.select("body").append("div").attr("id", "core5000");
     d3.select("#core5000").append("h2").text(deckName);
+    var divForLink = d3.select("#core5000").append("p");
 
     //------------------------------------------------------------
     // Variables and functions to help deal with the "Word" column
@@ -1104,6 +1109,8 @@ before [always]";
     //-------------------------
     // Visualization and return
     //-------------------------
+    arrToCSV(deckNotes, deckFields, "Download Nyar's Core5k CSV", divForLink);
+
     tabulate(deckNotes, deckFields, "#core5000");
 
     // Instead of setting the styles of thousands of <td> tags individually,
