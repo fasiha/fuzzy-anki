@@ -918,7 +918,7 @@ function core5000Modify(deckNotes, deckFields) {
     // Parts of speech abbreviations
     var abbreviations =
         "adn.,adv.,aux.,conj.,cp.,i-adj.,interj.,n.,na-adj.,num.,p.,p. \
-case,p. conj.,p. disc.,pron.,v.".split(',');
+case,p. conj.,p. disc.,pron.,v.,suffix,prefix".split(',');
     var abbreviationsOr = abbreviations.join("|").replace(/\./g, '\\.');
 
     // The basic structure of the "Word" column is:
@@ -961,6 +961,27 @@ case,p. conj.,p. disc.,pron.,v.".split(',');
     // translations. This handles case 2 above. These two arrays, as well as the
     // kanji/kana and roumaji, are returned as an object.
     function bar(seqString) {
+        // How much hackier can we get :)
+        if (0 ==
+            seqString.localeCompare(
+                "（お）姉さん(o)-nee-san n. elder sister")) {
+            // Add space between Japanese and reading
+            seqString = "（お）姉さん (o)-nee-san n. elder sister";
+        } else if (0 ==
+                   seqString.localeCompare(
+                       "相変わらず ai-kawara zu adv as ever, as usual, the \
+same, as before [always]")) {
+            // Add dot to "adv", completing the abbreviation instead of adding
+            // another abbreviation which might trigger elsewhere
+            seqString =
+                "相変わらず ai-kawara zu adv. as ever, as usual, the same, as \
+before [always]";
+        } else if (0 == seqString.localeCompare("ごと-goto suffix every")) {
+            seqString = "ごと goto suffix every";
+        } else if (0 == seqString.localeCompare("家 uchi n house, home")) {
+            seqString = "家 uchi n. house, home";
+        }
+
         var arr = seqString.split(XRegExp('(' + abbreviationsOr + ')'));
 
         var isAbbreviation = arr.map(
@@ -996,6 +1017,15 @@ case,p. conj.,p. disc.,pron.,v.".split(',');
         var kanaKanjiMatch =
             seqString.match(XRegExp(kanaKanjiWordRegexp + ' ' + romajiRegexp +
                                     ' ' + partOfSpeechRegexp));
+
+        if (0==seqString.localeCompare("Oa oobii n. OB (old boy), alumnus")) {
+            return {
+                pos : pos,
+                translation : translation,
+                word : "OB",
+                romaji : "oobii"
+            };
+        }
         return {
             pos : pos,
             translation : translation,
@@ -1054,6 +1084,11 @@ case,p. conj.,p. disc.,pron.,v.".split(',');
     // Complete cleanup
     //-----------------
     deckNotes.map(function(note, loc, arr) {
+        // Again, how much hackier can you get :)
+        if (0 == note.Reading.localeCompare("この 単語[たんご]はどういう 意味[いみ]ですか。")) {
+            note.Word = "語 go n. word; language";
+        }
+
         // Break up Word column into its four separate components
         note.Word = wordColumnReplace(note.Word);
 
