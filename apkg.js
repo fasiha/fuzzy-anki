@@ -514,21 +514,19 @@ function revlogVisualizeProgress(configModelsFacts, deckIDsWanted) {
         newdiv.append('div').attr("id", id);
     }
 
-    appendC3Div("Calendar view of acquisition",
-                "Time series showing when cards were learned. \
-Large circles indicate perfect performance, smaller circles indicate poorer \
-performance. Drag to pan, and mouse-weel to zoom.",
-                "chart");
-
     appendC3Div("Performance since acquisition", "Number of lapses since \
-card learned. Pannable and zoomable. Note: opposite x-axis direction as \
-previous plot.", "scatter-norm-rep-lapse");
+card learned. Drag to pan, and mouse-weel to zoom.", "scatter-norm-rep-lapse");
 
     appendC3Div("Performance histogram",
                 "Histogram of per-card performance, where ease of 1 is \
 failure and all other eases are success.",
                 "histogram");
 
+    appendC3Div("Calendar view of acquisition",
+                "Time series showing when cards were learned. \
+Large circles indicate perfect performance, smaller circles indicate poorer \
+performance. Zoomable and pannable.",
+                "chart");
 
     appendC3Div("Scatter plot of lapses versus reps",
                 "Lapses and reps are correlated with poor \
@@ -553,7 +551,7 @@ performance, so this scatter plot cannot be easily used for analysis.",
                  onmouseover :
                      function(d, i) {
                          $('.c3-circle-' + d.index).css({
-                             "stroke-width": 3
+                             "stroke-width": 5
                          });
                      },
                  onmouseout :
@@ -568,11 +566,8 @@ performance, so this scatter plot cannot be easily used for analysis.",
                  x : {
                      type : 'timeseries',
                      label : {text : "Date"},
-                     tick : {
-                         rotate : 10,
-                         height : 1300,
-                         format : '%Y-%m-%d %I:%M'
-                     }
+                     tick : {rotate : 15,  count: 50, format : '%Y-%m-%d %I:%M'},
+                     height : 40,
                  }
                },
         tooltip : {
@@ -598,7 +593,10 @@ performance, so this scatter plot cannot be easily used for analysis.",
                      2
                  ]
                },  // default is [1,10] doesn't provide enough zoooooom
-        point : {focus : {expand : {enabled : false}}} // don't expand a point on focus
+        point : {
+            focus :
+                {expand : {enabled : false}}
+        }  // don't expand a point on focus
     });
 
     // Make the radius and opacity of each data circle depend on the pass rate
@@ -607,7 +605,7 @@ performance, so this scatter plot cannot be easily used for analysis.",
     var worstRate = grader(_.min(revDb, grader));
     var scaleRadius = d3.scale.linear().domain([ worstRate - .005, 1 ]).range([ 2, 45 ]);
     var scaleOpacity =
-        d3.scale.linear().domain([ worstRate, 1 ]).range([ 1, .05 ]);
+        d3.scale.pow().exponent(-17).domain([ worstRate, 1 ]).range([ 1, 0.05 ]);
 
     // The following helps smooth out the diversity of radii and opacities by
     // putting more slope in the linear scale where there's more mass in the

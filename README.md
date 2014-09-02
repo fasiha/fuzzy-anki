@@ -36,6 +36,8 @@ This application uses
 - [sql.js](https://github.com/kripken/sql.js), by Alon Zakai and friends, for a JavaScript version of SQLite through Emscripten goodness
 - [zlib.js](https://github.com/imaya/zlib.js), by Imaya Yuta and friends, for JavaScript-based ZIP decompression
 - [XRegExp](http://xregexp.com/), by Steven Levithan and friends, for Unicode-aware regular expression support in JavaScript (regular expressions: they search text)
+- [C3.js](http://c3js.org/), by Masayuki Tanaka and friends, a plot-oriented wrapper to D3.js (what LaTeX is to TeX, what C is to assembly)
+- [underscore.js](http://underscorejs.org/), by Jeremy Ashkenas and friends, for functional Javascript candy
 - [nice-json2csv](https://github.com/matteofigus/nice-json2csv), by Matteo Figus and friend: what the name says (edited for browser and Excel CSV style)
 - [JQuery](http://jquery.com/), for an embarrassingly small amount of things
 - [CORS-Anywhere](http://cors-anywhere.herokuapp.com), not a software library but an internet service, allowing your browser to download decks not hosted by GitHub.io
