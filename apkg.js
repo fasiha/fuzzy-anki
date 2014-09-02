@@ -644,10 +644,16 @@ performance, so this scatter plot cannot be easily used for analysis.",
     //------------------------------------------------------------------------
     // Histogram of pass rates
     //------------------------------------------------------------------------
-    var numBins = 20;
-    var histData = d3.layout.histogram().bins(scaleRadius.ticks(numBins))(
-        _.map(revDb, grader));
-    var chartHistData = _.map(histData, function(bar) { return [ bar.x, bar.y ]; });
+    // High to low, then reverse, to make sure 1.01 and 1 have no roundoff.
+    // Include 1.01 to capture 1 in its own bin
+    var binDistance = 0.01;
+    var histEdges = _.range(1.01, Math.floor(worstRate * 100) / 100,
+                            -binDistance).reverse();
+
+    var histData = d3.layout.histogram().bins(histEdges)(_.map(revDb, grader));
+    var normalizeHistToPercent = 1 / (temporalIndexToCardArray.length);
+    var chartHistData =
+        _.map(histData, function(bar) { return [ bar.x, bar.y ]; });
     chartHistData.unshift([ 'x', 'frequency' ]);
     var hist = c3.generate({
         bindto : '#histogram',
@@ -657,9 +663,20 @@ performance, so this scatter plot cannot be easily used for analysis.",
                  y : {label : {text : "Number of cards"}},
                  x : {
                      label : {text : "Pass rate"},
+                     tick : {format : d3.format('.2p')}
 
                  }
                },
+        tooltip : {
+                    format : {
+                        value : function(value, ratio, id) {
+                            return value + ' cards (' +
+                                   d3.format('.3p')(value *
+                                                    normalizeHistToPercent) +
+                                   ' of cards)';
+                        }
+                    }
+                  },
         legend : {show : false}
     });
 
