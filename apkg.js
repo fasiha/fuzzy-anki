@@ -512,6 +512,7 @@ function revlogVisualizeProgress(configModelsFacts, deckIDsWanted) {
         newdiv.append("h4").text(heading);
         newdiv.append('p').text(text);
         newdiv.append('div').attr("id", id);
+        // d3.select("#reviews").append('div').attr("id", id);
     }
 
     appendC3Div("Performance since acquisition", "Number of lapses since \
