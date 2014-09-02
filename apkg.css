@@ -49,6 +49,10 @@ padding: 0.5em 1em;
     vertical-align: middle;
 }
 
+span.viz-field-span {
+    margin-right: 0.5em;
+}
+
 /* For Nayr's Core5000 deck */
 .kana, .reading {
     font-size: 50%;

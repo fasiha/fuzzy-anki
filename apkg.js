@@ -173,8 +173,12 @@ function displayRevlogOutputOptions() {
 
     // Data: elements of decksReviewed (which are {deck IDs -> object})
     // TODO: enable visualization of unknown decks: .data(Object.keys(decksReviewed))
+    var decksReviewedKeysAlphabetized =
+        _.sortBy(Object.keys(_.omit(decksReviewed, null)), function(did) {
+            return allDecks[did] ? allDecks[did].name : "zzzUnknown";
+        });
     var vizDecksList = vizDecks.selectAll("li")
-                           .data(Object.keys(_.omit(decksReviewed, null)))
+                           .data(decksReviewedKeysAlphabetized)
                            .enter()
                            .append("li")
                            .append('label')
@@ -230,30 +234,42 @@ function updateModelChoices() {
         modelsData.enter()
             .append("li")
             .attr("id", function(mid) { return "viz-model-" + mid; })
-            .text(function(mid) { return mid !== "null" ? allModels[mid].name : "Unknown model";  })
+            .text(
+                 function(mid) {
+                     return mid !== "null" ? allModels[mid].name
+                                           : "Unknown model";
+                 })
+            /*.on("click", function(mid) {
+                $('#viz-model-' + mid + '-list').slideToggle();
+            })*/
             .classed("viz-model",
-                     true);  // see http://stackoverflow.com/a/25599142/500207
+                     true).append("ul").append("li");
 
     var vizFields =
-        vizModelsList.selectAll("ul")
+        vizModelsList.selectAll("span")
             .data(
                  function(d) {
                      return d !== "null"
                                 ? (_.pluck(allModels[d].flds, 'name').map(
                                       function(name, idx) {
-                                          return {name : name, modelId : d};
+                                          return {
+                                              name : name,
+                                              modelId : d,
+                                              total : allModels[d].flds.length
+                                          };
                                       }))
                                 : [];
                  })
             .enter()
-            .append("ul")  //.append("li")
+            .append("span")
+            .classed("viz-field-span", true)
             .append("label")
             .attr("for", function(d, i) {
                 return 'viz-model-' + d.modelId + '-field-' + i;
             })
             .html(function(d, i) {
         return '<input type="checkbox" id="viz-model-' + d.modelId + '-field-' +
-               i + '"> ' + d.name;
+               i + '"> ' + d.name + (i + 1 < d.total ? ', ' : "");
     });
 }
 
