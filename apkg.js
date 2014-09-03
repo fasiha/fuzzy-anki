@@ -1125,9 +1125,11 @@ before [always]";
 }
 
 function specialDisplayHandlers() {
-    if (0 == "Nayr's Japanese Core5000".localeCompare(deckName)) {
-        deckNotes = core5000Modify(deckNotes, deckFields);
-        return 1;
+    if (false) {
+        if (0 == "Nayr's Japanese Core5000".localeCompare(deckName)) {
+            deckNotes = core5000Modify(deckNotes, deckFields);
+            return 1;
+        }
     }
     return 0;
 }
