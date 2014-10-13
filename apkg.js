@@ -1,9 +1,13 @@
 var GLOBAL_CORS_PROXY = "http://cors-anywhere.herokuapp.com/";
-
-var deckNotes;
-var deckFields;
-var deckName;
 var ankiSeparator = '\x1f';
+
+// deckNotes contains the contents of any APKG decks uploaded. It is an array of
+// objects with the following properties:
+// - "name", a string
+// - "fieldNames", an array of strings
+// - "notes", an array of objects, each with properties corresponding to the
+// entries of fieldNames.
+var deckNotes;
 
 // Huge props to http://stackoverflow.com/a/9507713/500207
 function tabulate(datatable, columns, containerString) {
@@ -43,41 +47,44 @@ function tabulate(datatable, columns, containerString) {
 function sqlToTable(uInt8ArraySQLdb) {
     var db = new SQL.Database(uInt8ArraySQLdb);
 
+    // Decks table (for deck names)
+    decks = db.exec("SELECT decks FROM col");
+    // Could use parseJSON from jQuery here.
+    decks = Function('return ' + decks[0].values[0][0])();
+
+    // Models table (for field names)
     col = db.exec("SELECT models FROM col");
-    var modelsFunction = Function('return ' + col[0].values[0][0]);
-    var models = modelsFunction();
+    // Could use parseJSON from jQuery here.
+    var models = Function('return ' + col[0].values[0][0])();
 
-    var fnames = [];
-    for (key in models) {
-        if (models.hasOwnProperty(key)) {
-            // This happens once every model: FIXME
-            deckName = models[key].name;
-            models[key].flds.forEach(
-                function(val, idx, arr) { fnames.push(val.name); });
-        }
-    }
-    deckFields = fnames;
+    // Notes table, for raw facts that make up individual cards
+    deckNotes = db.exec("SELECT mid,flds FROM notes");
 
-    // Notes table
-    deckNotes = db.exec("SELECT flds FROM notes");
+    _.each(_.keys(models), function(key) {
+        models[key].fields = _.pluck(models[key].flds, 'name');
+    });
 
-    // Actual notes
-    var notes = [];
-    var arrayToObj = function(facts) {
-        var myObj = {};
-        for (var i = 0; i < facts.length; i++) {
-            myObj[deckFields[i]] = facts[i];
-        }
-        return myObj;
-    };
-    deckNotes[0].values.forEach(
-        function(val) { notes.push(arrayToObj(val[0].split(ankiSeparator))); });
-    deckNotes = notes;
+    var notesByModel =
+        _.groupBy(deckNotes[0].values, function(row) { return row[0]; });
+
+    deckNotes = _.map(notesByModel, function(notesArray, modelId) {
+        var modelName = models[modelId].name;
+        var fieldNames = models[modelId].fields;
+        var notesArray = _.map(notesArray, function(note) {
+            var fields = note[1].split(ankiSeparator);
+            return arrayNamesToObj(fieldNames, fields);
+        });
+        return {name : modelName, notes : notesArray, fieldNames : fieldNames};
+    });
 
     // Visualize!
     if (0 == specialDisplayHandlers()) {
-        d3.select("#anki").append("h2").text(deckName);
-        tabulate(deckNotes, deckFields, "#anki");
+        _.each(deckNotes, function(model, idx) {
+            d3.select("#anki").append("h2").text(model.name);
+            var deckId = "deck-" + idx;
+            d3.select("#anki").append("div").attr("id", deckId);
+            tabulate(model.notes, model.fieldNames, "#" + deckId);
+        });
     }
 }
 
@@ -912,7 +919,7 @@ $(document).ready(function() {
 *(ideally these would be their own independent fields, but some rows have more
 *than one part-of-speech).
 */
-function core5000Modify(deckNotes, deckFields) {
+function core5000Modify(deckNotes, deckFields, deckName) {
     d3.select("body").append("div").attr("id", "core5000");
     d3.select("#core5000").append("h2").text(deckName);
     var divForLink = d3.select("#core5000").append("p");
@@ -1126,8 +1133,16 @@ before [always]";
 
 function specialDisplayHandlers() {
     if (false) {
-        if (0 == "Nayr's Japanese Core5000".localeCompare(deckName)) {
-            deckNotes = core5000Modify(deckNotes, deckFields);
+        modifiedDeckNotes = _.map(
+            _.filter(deckNotes, function(model) {
+                return 0 ==
+                       "Nayr's Japanese Core5000".localeCompare(model.name);
+            }),
+            function(model) {
+                return core5000Modify(model.notes, model.fieldNames,
+                                      model.name);
+            });
+        if (modifiedDeckNotes.length > 0) {
             return 1;
         }
     }
