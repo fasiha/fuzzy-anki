@@ -292,7 +292,7 @@ function arrToCSV(dataArray, fieldsArray, linkText, d3SelectionToAppend) {
 function generateReviewsCSV() {
     var d3Selection = arrToCSV(
         revlogTable,
-        "dateString,ease,timeToAnswer,noteSortKeyFact,deckName,modelName,lapses,\
+        "dateString,ease,interval,lastInterval,timeToAnswer,noteSortKeyFact,deckName,modelName,lapses,\
 reps,noteFactsJSON".split(','),
         "Download CSV", d3.select("#export-request").append("li").attr(
                             "id", "export-completed"));
@@ -301,7 +301,7 @@ reps,noteFactsJSON".split(','),
 
 function tabulateReviews() {
     tabulate(revlogTable,
-             "date,ease,timeToAnswer,noteSortKeyFact,deckName,modelName,lapses,\
+             "date,ease,interval,lastInterval,timeToAnswer,noteSortKeyFact,deckName,modelName,lapses,\
 reps,noteFactsJSON".split(','),
              "div#reviews");
 }
@@ -340,7 +340,7 @@ function ankiSQLToRevlogTable(array, options) {
 
     // The reviews
     var query =
-        'SELECT revlog.id, revlog.ease, revlog.time, notes.flds, notes.sfld, cards.id, cards.reps, cards.lapses, cards.did, notes.mid, cards.ord \
+        'SELECT revlog.id, revlog.ease, revlog.ivl, revlog.lastIvl, revlog.time, notes.flds, notes.sfld, cards.id, cards.reps, cards.lapses, cards.did, notes.mid, cards.ord \
 FROM revlog \
 LEFT OUTER JOIN cards ON revlog.cid=cards.id \
 LEFT OUTER JOIN notes ON cards.nid=notes.id \
@@ -348,7 +348,7 @@ ORDER BY revlog.id' +
         (options.recent ? " DESC " : "") +
         (options.limit && options.limit > 0 ? " LIMIT " + options.limit : "");
     var queryResultNames =
-        "revId,ease,timeToAnswer,noteFacts,noteSortKeyFact,cardId,reps,lapses,deckId,\
+        "revId,ease,interval,lastInterval,timeToAnswer,noteFacts,noteSortKeyFact,cardId,reps,lapses,deckId,\
 modelId,templateNum".split(',');
 
     // Run the query and convert the resulting array of arrays into an array of
