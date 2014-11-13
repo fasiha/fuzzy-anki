@@ -293,7 +293,7 @@ function generateReviewsCSV() {
     var d3Selection = arrToCSV(
         revlogTable,
         "dateString,ease,interval,lastInterval,timeToAnswer,noteSortKeyFact,deckName,modelName,lapses,\
-reps,noteFactsJSON".split(','),
+reps,cardId,noteFactsJSON".split(','),
         "Download CSV", d3.select("#export-request").append("li").attr(
                             "id", "export-completed"));
     d3Selection.classed('csv-download', true);
@@ -302,7 +302,7 @@ reps,noteFactsJSON".split(','),
 function tabulateReviews() {
     tabulate(revlogTable,
              "date,ease,interval,lastInterval,timeToAnswer,noteSortKeyFact,deckName,modelName,lapses,\
-reps,noteFactsJSON".split(','),
+reps,cardId,noteFactsJSON".split(','),
              "div#reviews");
 }
 
