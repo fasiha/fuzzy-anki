@@ -88,6 +88,36 @@ function sqlToTable(uInt8ArraySQLdb) {
     }
 }
 
+function parseImages(imageTable,unzip,filenames){
+    var map = {};
+    for (var prop in imageTable) {
+      if (filenames.indexOf(prop) >= 0) {
+        var file = unzip.decompress(prop);
+        map[imageTable[prop]] = converterEngine (file);
+      }
+    }
+    d3.selectAll("img")
+      .attr("src", function(d,i) {
+        var key = this.src.split('/').pop();
+        if (key in map){
+          return "data:image/png;base64,"+map[this.src.split('/').pop()];
+        }
+          return this.src;
+      });
+}
+
+function converterEngine (input) { // fn BLOB => Binary => Base64 ?
+  // adopted from https://github.com/NYTimes/svg-crowbar/issues/16
+    var uInt8Array = new Uint8Array(input),
+        i = uInt8Array.length;
+    var biStr = []; //new Array(i);
+    while (i--) {
+        biStr[i] = String.fromCharCode(uInt8Array[i]);
+    }
+    var base64 = window.btoa(biStr.join(''));
+    return base64;
+};
+
 function ankiBinaryToTable(ankiArray, options) {
     var compressed = new Uint8Array(ankiArray);
     var unzip = new Zlib.Unzip(compressed);
@@ -95,6 +125,15 @@ function ankiBinaryToTable(ankiArray, options) {
     if (filenames.indexOf("collection.anki2") >= 0) {
         var plain = unzip.decompress("collection.anki2");
         sqlToTable(plain);
+        if (filenames.indexOf("media") >= 0) {
+            var plainmedia = unzip.decompress("media");
+            var bb = new Blob([new Uint8Array(plainmedia)]);
+            var f = new FileReader();
+            f.onload = function(e) {
+              parseImages(JSON.parse(e.target.result),unzip,filenames);
+            };
+            f.readAsText(bb);
+        }
     }
 }
 
