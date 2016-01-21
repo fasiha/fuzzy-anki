@@ -98,9 +98,10 @@ function parseImages(imageTable,unzip,filenames){
     }
     d3.selectAll("img")
       .attr("src", function(d,i) {
-        var key = this.src.split('/').pop();
+        //Some filenames may be encoded. Decode them beforehand.
+        var key = decodeURI(this.src.split('/').pop());
         if (key in map){
-          return "data:image/png;base64,"+map[this.src.split('/').pop()];
+          return "data:image/png;base64,"+map[key];
         }
           return this.src;
       });
