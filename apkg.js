@@ -126,19 +126,21 @@ function ankiBinaryToTable(ankiArray, options) {
     if (filenames.indexOf("collection.anki2") >= 0) {
         var plain = unzip.decompress("collection.anki2");
         sqlToTable(plain);
-        if (filenames.indexOf("media") >= 0) {
-            var plainmedia = unzip.decompress("media");
-            var bb = new Blob([new Uint8Array(plainmedia)]);
-            var f = new FileReader();
-            f.onload = function(e) {
-              parseImages(JSON.parse(e.target.result),unzip,filenames);
-            };
-            f.readAsText(bb);
+        if (options && options.loadImage){
+          if (filenames.indexOf("media") >= 0) {
+              var plainmedia = unzip.decompress("media");
+              var bb = new Blob([new Uint8Array(plainmedia)]);
+              var f = new FileReader();
+              f.onload = function(e) {
+                parseImages(JSON.parse(e.target.result),unzip,filenames);
+              };
+              f.readAsText(bb);
+          }
         }
     }
 }
 
-function ankiURLToTable(ankiURL, useCorsProxy, corsProxyURL) {
+function ankiURLToTable(ankiURL, options, useCorsProxy, corsProxyURL) {
     if (typeof useCorsProxy === 'undefined') {
         useCorsProxy = false;
     }
@@ -149,7 +151,7 @@ function ankiURLToTable(ankiURL, useCorsProxy, corsProxyURL) {
     var zipxhr = new XMLHttpRequest();
     zipxhr.open('GET', (useCorsProxy ? corsProxyURL : "") + ankiURL, true);
     zipxhr.responseType = 'arraybuffer';
-    zipxhr.onload = function(e) { ankiBinaryToTable(this.response); };
+    zipxhr.onload = function(e) { ankiBinaryToTable(this.response, options); };
     zipxhr.send();
 }
 
@@ -890,6 +892,11 @@ function convert(data, headers, suppressHeader) {
 }
 
 $(document).ready(function() {
+    var options = {};
+    var setOptionsImageLoad = function(){
+        options.loadImage = $('input#showImage').is(':checked');
+        return options;
+    }
     var eventHandleToTable = function(event) {
         event.stopPropagation();
         event.preventDefault();
@@ -904,7 +911,7 @@ $(document).ready(function() {
             reader.onload =
                 function(e) { event.data.function(e.target.result); };
         } else {
-            reader.onload = function(e) { ankiBinaryToTable(e.target.result); };
+            reader.onload = function(e) { ankiBinaryToTable(e.target.result, setOptionsImageLoad()); };
         }
         /* // If the callback doesn't need the File object, just use the above.
         reader.onload = (function(theFile) {
@@ -918,9 +925,15 @@ $(document).ready(function() {
     };
 
     // Deck browser
-    $("#ankiFile").change({"function" : ankiBinaryToTable}, eventHandleToTable);
+    $("#ankiFile")
+        .change({
+                  "function" :
+                      function(data) {
+                          ankiBinaryToTable(data, setOptionsImageLoad());
+                      }
+                }, eventHandleToTable);
     $("#ankiURLSubmit").click(function(event) {
-        ankiURLToTable($("#ankiURL").val(), true);
+        ankiURLToTable($("#ankiURL").val(), setOptionsImageLoad(), true);
         $("#ankiURL").val('');
     });
 
