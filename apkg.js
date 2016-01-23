@@ -88,6 +88,37 @@ function sqlToTable(uInt8ArraySQLdb) {
     }
 }
 
+function parseImages(imageTable,unzip,filenames){
+    var map = {};
+    for (var prop in imageTable) {
+      if (filenames.indexOf(prop) >= 0) {
+        var file = unzip.decompress(prop);
+        map[imageTable[prop]] = converterEngine (file);
+      }
+    }
+    d3.selectAll("img")
+      .attr("src", function(d,i) {
+        //Some filenames may be encoded. Decode them beforehand.
+        var key = decodeURI(this.src.split('/').pop());
+        if (key in map){
+          return "data:image/png;base64,"+map[key];
+        }
+          return this.src;
+      });
+}
+
+function converterEngine (input) { // fn BLOB => Binary => Base64 ?
+  // adopted from https://github.com/NYTimes/svg-crowbar/issues/16
+    var uInt8Array = new Uint8Array(input),
+        i = uInt8Array.length;
+    var biStr = []; //new Array(i);
+    while (i--) {
+        biStr[i] = String.fromCharCode(uInt8Array[i]);
+    }
+    var base64 = window.btoa(biStr.join(''));
+    return base64;
+};
+
 function ankiBinaryToTable(ankiArray, options) {
     var compressed = new Uint8Array(ankiArray);
     var unzip = new Zlib.Unzip(compressed);
@@ -95,10 +126,21 @@ function ankiBinaryToTable(ankiArray, options) {
     if (filenames.indexOf("collection.anki2") >= 0) {
         var plain = unzip.decompress("collection.anki2");
         sqlToTable(plain);
+        if (options && options.loadImage){
+          if (filenames.indexOf("media") >= 0) {
+              var plainmedia = unzip.decompress("media");
+              var bb = new Blob([new Uint8Array(plainmedia)]);
+              var f = new FileReader();
+              f.onload = function(e) {
+                parseImages(JSON.parse(e.target.result),unzip,filenames);
+              };
+              f.readAsText(bb);
+          }
+        }
     }
 }
 
-function ankiURLToTable(ankiURL, useCorsProxy, corsProxyURL) {
+function ankiURLToTable(ankiURL, options, useCorsProxy, corsProxyURL) {
     if (typeof useCorsProxy === 'undefined') {
         useCorsProxy = false;
     }
@@ -109,7 +151,7 @@ function ankiURLToTable(ankiURL, useCorsProxy, corsProxyURL) {
     var zipxhr = new XMLHttpRequest();
     zipxhr.open('GET', (useCorsProxy ? corsProxyURL : "") + ankiURL, true);
     zipxhr.responseType = 'arraybuffer';
-    zipxhr.onload = function(e) { ankiBinaryToTable(this.response); };
+    zipxhr.onload = function(e) { ankiBinaryToTable(this.response, options); };
     zipxhr.send();
 }
 
@@ -850,6 +892,11 @@ function convert(data, headers, suppressHeader) {
 }
 
 $(document).ready(function() {
+    var options = {};
+    var setOptionsImageLoad = function(){
+        options.loadImage = $('input#showImage').is(':checked');
+        return options;
+    }
     var eventHandleToTable = function(event) {
         event.stopPropagation();
         event.preventDefault();
@@ -864,7 +911,7 @@ $(document).ready(function() {
             reader.onload =
                 function(e) { event.data.function(e.target.result); };
         } else {
-            reader.onload = function(e) { ankiBinaryToTable(e.target.result); };
+            reader.onload = function(e) { ankiBinaryToTable(e.target.result, setOptionsImageLoad()); };
         }
         /* // If the callback doesn't need the File object, just use the above.
         reader.onload = (function(theFile) {
@@ -878,9 +925,15 @@ $(document).ready(function() {
     };
 
     // Deck browser
-    $("#ankiFile").change({"function" : ankiBinaryToTable}, eventHandleToTable);
+    $("#ankiFile")
+        .change({
+                  "function" :
+                      function(data) {
+                          ankiBinaryToTable(data, setOptionsImageLoad());
+                      }
+                }, eventHandleToTable);
     $("#ankiURLSubmit").click(function(event) {
-        ankiURLToTable($("#ankiURL").val(), true);
+        ankiURLToTable($("#ankiURL").val(), setOptionsImageLoad(), true);
         $("#ankiURL").val('');
     });
 
