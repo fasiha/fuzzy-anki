@@ -84,6 +84,7 @@ function sqlToTable(uInt8ArraySQLdb) {
             var deckId = "deck-" + idx;
             d3.select("#anki").append("div").attr("id", deckId);
             tabulate(model.notes, model.fieldNames, "#" + deckId);
+            arrToCSV(model.notes, model.fieldNames, "Download CSV", d3.select("#" + deckId))
         });
     }
 }
