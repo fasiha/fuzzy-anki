@@ -8,6 +8,7 @@ var ankiSeparator = '\x1f';
 // - "notes", an array of objects, each with properties corresponding to the
 // entries of fieldNames.
 var deckNotes;
+var SQL;
 
 // Huge props to http://stackoverflow.com/a/9507713/500207
 function tabulate(datatable, columns, containerString) {
@@ -893,6 +894,12 @@ function convert(data, headers, suppressHeader) {
 }
 
 $(document).ready(function() {
+    initSqlJs({locateFile: filename => filename}).then(function(localSQL){
+        SQL = localSQL;
+        readySetup();
+    });
+});
+function readySetup() {
     var options = {};
     var setOptionsImageLoad = function(){
         options.loadImage = $('input#showImage').is(':checked');
@@ -953,7 +960,7 @@ $(document).ready(function() {
 
     // Only for local development
     // ankiURLToTable('/n.apkg');
-});
+};
 
 /**
 * Hook that modifies Nayr's Japanese Core5000 Anki deck
