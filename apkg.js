@@ -125,8 +125,10 @@ function ankiBinaryToTable(ankiArray, options) {
     var compressed = new Uint8Array(ankiArray);
     var unzip = new Zlib.Unzip(compressed);
     var filenames = unzip.getFilenames();
-    if (filenames.indexOf("collection.anki2") >= 0) {
-        var plain = unzip.decompress("collection.anki2");
+    var anki21Exists = filenames.indexOf("collection.anki21") >= 0;
+    var sqliteFile = anki21Exists ? "collection.anki21" : "collection.anki2";
+    if (filenames.indexOf(sqliteFile) >= 0) {
+        var plain = unzip.decompress(sqliteFile);
         sqlToTable(plain);
         if (options && options.loadImage){
           if (filenames.indexOf("media") >= 0) {
